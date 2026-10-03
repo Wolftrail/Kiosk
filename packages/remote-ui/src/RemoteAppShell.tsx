@@ -12,6 +12,7 @@ export type RemoteAppShellProps = {
   children: ReactNode
   backHref?: string
   onBack?: () => boolean | void
+  initialFocusSelector?: string
 }
 
 export function RemoteAppShell({
@@ -22,6 +23,7 @@ export function RemoteAppShell({
   children,
   backHref = '/',
   onBack,
+  initialFocusSelector = '.remote-app-shell__back',
 }: RemoteAppShellProps) {
   const handleBack = () => {
     if (onBack) return onBack()
@@ -32,7 +34,7 @@ export function RemoteAppShell({
   return (
     <RemoteNavigationProvider
       className="remote-app-shell__navigation"
-      initialFocusSelector=".remote-app-shell__back"
+      initialFocusSelector={initialFocusSelector}
       onBack={handleBack}
     >
       <div className="remote-app-shell" data-theme={theme}>

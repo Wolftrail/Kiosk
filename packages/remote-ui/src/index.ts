@@ -1,5 +1,7 @@
 export { RemoteButton } from './RemoteButton'
 export type { RemoteButtonProps } from './RemoteButton'
+export { OnScreenKeyboard } from './OnScreenKeyboard'
+export type { OnScreenKeyboardProps } from './OnScreenKeyboard'
 export { RemoteLink } from './RemoteLink'
 export type { RemoteLinkProps } from './RemoteLink'
 export { RemoteNavigationProvider } from './RemoteNavigationProvider'

@@ -168,6 +168,49 @@ body,
   outline-offset: 4px;
 }
 
+.remote-onscreen-keyboard {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.remote-onscreen-keyboard__row {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
+.remote-onscreen-keyboard__key {
+  display: grid;
+  min-width: 0;
+  min-height: 42px;
+  flex: 1 1 0;
+  place-items: center;
+  padding: 0 5px;
+  border: 1px solid rgba(32, 59, 53, 0.16);
+  border-radius: 4px;
+  color: var(--remote-ink);
+  background: rgba(255, 255, 255, 0.72);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.remote-onscreen-keyboard__key:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.remote-onscreen-keyboard__key--action {
+  flex: 1.5 1 0;
+  color: var(--remote-accent);
+}
+
+.remote-onscreen-keyboard__row--actions .remote-onscreen-keyboard__key--space {
+  flex: 5 1 0;
+}
+
 @keyframes remote-app-settle-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }

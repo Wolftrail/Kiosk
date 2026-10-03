@@ -2,12 +2,13 @@ import react from '@vitejs/plugin-react'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
+import { ytDlpPlugin } from './yt-dlp-plugin.ts'
 
 const projectRoot = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
   base: '/apps/jukebox/',
-  plugins: [react()],
+  plugins: [react(), ytDlpPlugin()],
   server: {
     host: '0.0.0.0',
     port: 5174,

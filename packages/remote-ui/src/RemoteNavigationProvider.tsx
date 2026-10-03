@@ -3,7 +3,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 const BACK_KEYS = new Set(['Escape', 'Backspace', 'GoBack', 'BrowserBack'])
 const DIRECTION_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'])
 const FOCUSABLE_SELECTOR = [
-  '[data-remote-focus]',
+  '[data-remote-focus]:not(:disabled)',
   'button:not(:disabled)',
   'a[href]',
   'input:not(:disabled)',
