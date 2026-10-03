@@ -16,6 +16,7 @@ type LibraryVideo = {
 }
 
 type RequestBody = { url?: unknown; query?: unknown; name?: unknown; videoId?: unknown; tags?: unknown }
+type DownloadResolution = { video: LibraryVideo; alreadyExists: boolean }
 
 const apiPrefix = '/apps/jukebox/api/'
 const videoPrefix = '/apps/jukebox/videos/'
@@ -26,6 +27,7 @@ const videoDirectory = resolve(projectRoot, 'public/videos')
 const libraryPath = resolve(projectRoot, 'data/library.json')
 const tagsPath = resolve(projectRoot, 'data/tags.json')
 let libraryMutation = Promise.resolve()
+const inFlightDownloads = new Map<string, Promise<LibraryVideo>>()
 
 function sendJson(response: ServerResponse, status: number, data: unknown) {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' })
@@ -168,6 +170,39 @@ async function downloadVideo(url: string) {
   return savedVideo
 }
 
+async function findStoredVideo(videoId: string) {
+  const video = (await readLibrary()).find((item) => item.id === videoId)
+  if (!video) return undefined
+  try {
+    const details = await stat(resolve(videoDirectory, video.filename))
+    return details.isFile() ? video : undefined
+  } catch {
+    return undefined
+  }
+}
+
+async function downloadOrReuseVideo(url: string): Promise<DownloadResolution> {
+  const videoId = new URL(url).searchParams.get('v')
+  if (!videoId) throw new Error('YouTube URL must contain a valid video ID.')
+
+  const activeDownload = inFlightDownloads.get(videoId)
+  if (activeDownload) return { video: await activeDownload, alreadyExists: true }
+
+  const existingVideo = await findStoredVideo(videoId)
+  if (existingVideo) return { video: existingVideo, alreadyExists: true }
+
+  const concurrentDownload = inFlightDownloads.get(videoId)
+  if (concurrentDownload) return { video: await concurrentDownload, alreadyExists: true }
+
+  const download = downloadVideo(url)
+  inFlightDownloads.set(videoId, download)
+  try {
+    return { video: await download, alreadyExists: false }
+  } finally {
+    if (inFlightDownloads.get(videoId) === download) inFlightDownloads.delete(videoId)
+  }
+}
+
 function handleApiRequest(request: IncomingMessage, response: ServerResponse, next: () => void) {
   const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
   if (pathname.startsWith(videoPrefix)) {
@@ -208,6 +243,35 @@ function handleApiRequest(request: IncomingMessage, response: ServerResponse, ne
       .catch((error: unknown) => {
         const message = error instanceof Error ? error.message : 'Could not create tag.'
         sendJson(response, message.startsWith('Tags must') || message.startsWith('Provide') ? 400 : 500, { error: message })
+      })
+    return
+  }
+
+  if (pathname === `${apiPrefix}tags` && request.method === 'DELETE') {
+    void readRequestBody(request)
+      .then(async ({ name }) => {
+        if (typeof name !== 'string') throw new Error('Provide a tag name.')
+        const tags = await readTags()
+        const tag = findTag(tags, name)
+        if (!tag) throw new Error('Tag was not found.')
+        const updatedTags = tags.filter((item) => item !== tag)
+        await writeTags(updatedTags)
+        try {
+          await updateLibrary((library) => library.map((video) => ({
+            ...video,
+            tags: video.tags.filter((item) => item !== tag),
+          })))
+        } catch (error) {
+          await writeTags(tags)
+          throw error
+        }
+        return { tag, tags: updatedTags }
+      })
+      .then((result) => sendJson(response, 200, result))
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Could not delete tag.'
+        const status = message === 'Tag was not found.' ? 404 : message.startsWith('Tags must') || message.startsWith('Provide') ? 400 : 500
+        sendJson(response, status, { error: message })
       })
     return
   }
@@ -296,10 +360,11 @@ function handleApiRequest(request: IncomingMessage, response: ServerResponse, ne
       if (parsedUrl.protocol !== 'https:' || parsedUrl.port || parsedUrl.username || parsedUrl.password || !youtubeHosts.has(parsedUrl.hostname.toLowerCase())) {
         throw new Error('Only HTTPS YouTube video URLs are supported.')
       }
-      return downloadVideo(normalizeYouTubeVideoUrl(parsedUrl))
+      return downloadOrReuseVideo(normalizeYouTubeVideoUrl(parsedUrl))
     })
-    .then((video) => sendJson(response, 200, {
+    .then(({ video, alreadyExists }) => sendJson(response, 200, {
       ...video,
+      alreadyExists,
       videoUrl: `/apps/jukebox/videos/${encodeURIComponent(video.filename)}`,
     }))
     .catch((error: unknown) => {

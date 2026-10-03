@@ -163,6 +163,7 @@
 .jukebox__manager-editor h3 { margin: 8px 0 4px; font-size: 20px; line-height: 1.25; }
 .jukebox__manager-editor > p { margin: 0 0 20px; color: #78827d; font-size: 13px; }
 .jukebox__manager-tags { margin-bottom: 24px; }
+.jukebox__manager-editor > .jukebox__tag-hint { margin: -12px 0 13px; color: #78827d; font-size: 11px; line-height: 1.45; }
 .jukebox__new-tag-form { display: grid; gap: 9px; padding-top: 18px; border-top: 1px solid rgba(36, 51, 47, .16); }
 .jukebox__new-tag-form label { font-size: 12px; font-weight: 750; }
 .jukebox__new-tag-form input { min-height: 44px; padding: 0 11px; border: 1px solid rgba(36, 51, 47, .22); color: #263b35; background: #fffdf7; font: inherit; font-size: 14px; }

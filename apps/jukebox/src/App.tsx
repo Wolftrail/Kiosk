@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Disc3, Pause, Play, Plus, Radio, Search, SkipBack, SkipForward, SlidersHorizontal, Tags, Video, X } from 'lucide-react'
-import { OnScreenKeyboard, RemoteAppShell, RemoteButton } from '@kiosk/remote-ui'
+import { ConfirmationDialog, OnScreenKeyboard, RemoteAppShell, RemoteButton } from '@kiosk/remote-ui'
 import './App.css'
 
 type Track = {
@@ -20,6 +20,7 @@ type DownloadResponse = {
   duration: string
   videoUrl: string
   tags?: string[]
+  alreadyExists?: boolean
   error?: string
 }
 
@@ -55,6 +56,67 @@ function shuffleTracks(trackIds: string[]) {
   return shuffled
 }
 
+type ManagerTagButtonProps = {
+  tag: string
+  assigned: boolean
+  onToggle?: () => void
+  onDelete: () => void
+}
+
+function ManagerTagButton({ tag, assigned, onToggle, onDelete }: ManagerTagButtonProps) {
+  const holdTimerRef = useRef<number | undefined>(undefined)
+  const longPressRef = useRef(false)
+  const suppressClickRef = useRef(false)
+
+  const startHold = () => {
+    if (holdTimerRef.current !== undefined) return
+    holdTimerRef.current = window.setTimeout(() => {
+      holdTimerRef.current = undefined
+      longPressRef.current = true
+    }, 700)
+  }
+
+  const stopHold = () => {
+    window.clearTimeout(holdTimerRef.current)
+    holdTimerRef.current = undefined
+  }
+
+  const finishHold = () => {
+    stopHold()
+    if (longPressRef.current) {
+      longPressRef.current = false
+      suppressClickRef.current = true
+      onDelete()
+      window.setTimeout(() => { suppressClickRef.current = false }, 0)
+    }
+  }
+
+  return (
+    <RemoteButton
+      className={`jukebox__tag-chip ${assigned ? 'is-selected' : ''}`}
+      aria-label={`${tag}${assigned ? ', assigned' : ''}. Hold for 0.7 seconds to delete.`}
+      aria-pressed={assigned}
+      onPointerDown={(event) => { if (event.button === 0) startHold() }}
+      onPointerUp={finishHold}
+      onPointerCancel={stopHold}
+      onPointerLeave={stopHold}
+      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') startHold() }}
+      onKeyUp={finishHold}
+      onBlur={stopHold}
+      onContextMenu={(event) => event.preventDefault()}
+      onClick={() => {
+        if (suppressClickRef.current) {
+          suppressClickRef.current = false
+          return
+        }
+        onToggle?.()
+      }}
+    >
+      {tag}
+    </RemoteButton>
+  )
+}
+
 function App() {
   const [tracks, setTracks] = useState(initialTracks)
   const [selectedTrackId, setSelectedTrackId] = useState(initialTracks[0].id)
@@ -65,6 +127,8 @@ function App() {
   const [isCaptionVisible, setIsCaptionVisible] = useState(false)
   const [isCaptionPersistent, setIsCaptionPersistent] = useState(false)
   const [showManage, setShowManage] = useState(false)
+  const [pendingDeleteTag, setPendingDeleteTag] = useState<string | null>(null)
+  const [isDeletingTag, setIsDeletingTag] = useState(false)
   const [managedTrackId, setManagedTrackId] = useState('')
   const [newTag, setNewTag] = useState('')
   const [showAddVideo, setShowAddVideo] = useState(false)
@@ -210,6 +274,38 @@ function App() {
     }
   }
 
+  const handleDeleteTag = async () => {
+    const tag = pendingDeleteTag
+    if (!tag || isDeletingTag) return
+    setIsDeletingTag(true)
+    try {
+      const response = await fetch('/apps/jukebox/api/tags', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: tag }),
+      })
+      const result = await response.json() as { tags?: string[]; error?: string }
+      if (!response.ok) throw new Error(result.error ?? 'Could not delete tag.')
+      setTags(result.tags ?? tags.filter((item) => item !== tag))
+      setTracks((current) => current.map((track) => ({
+        ...track,
+        tags: track.tags.filter((item) => item !== tag),
+      })))
+      setTagFilters((current) => {
+        if (!(tag in current)) return current
+        const next = { ...current }
+        delete next[tag]
+        return next
+      })
+      setPendingDeleteTag(null)
+      setNotice(`Deleted tag: ${tag}`)
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not delete tag.')
+    } finally {
+      setIsDeletingTag(false)
+    }
+  }
+
   const selectTrack = (track: Track, autoplay = false) => {
     autoplayTrackChangeRef.current = autoplay
     setSelectedTrackId(track.id)
@@ -298,7 +394,7 @@ function App() {
       setShowSearch(false)
       setVideoUrl('')
       setIsPlaying(false)
-      setNotice(`Downloaded: ${addedTrack.title}`)
+      setNotice(`${result.alreadyExists ? 'Already in library' : 'Downloaded'}: ${addedTrack.title}`)
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Could not reach the jukebox downloader.')
     } finally {
@@ -447,10 +543,17 @@ function App() {
                 <span className="jukebox__eyebrow">VIDEO TAGS</span>
                 <h3>{managedTrack.title}</h3>
                 <p>{managedTrack.artist}</p>
+                <p className="jukebox__tag-hint">Press to assign or remove. Hold for 0.7 seconds to delete a tag.</p>
                 <div className="jukebox__manager-tags">
                   {tags.map((tag) => {
                     const assigned = managedTrack.tags.includes(tag)
-                    return <RemoteButton key={tag} className={`jukebox__tag-chip ${assigned ? 'is-selected' : ''}`} aria-pressed={assigned} onClick={() => void saveTrackTags(managedTrack.id, assigned ? managedTrack.tags.filter((item) => item !== tag) : [...managedTrack.tags, tag])}>{tag}</RemoteButton>
+                    return <ManagerTagButton
+                      key={tag}
+                      tag={tag}
+                      assigned={assigned}
+                      onToggle={() => void saveTrackTags(managedTrack.id, assigned ? managedTrack.tags.filter((item) => item !== tag) : [...managedTrack.tags, tag])}
+                      onDelete={() => setPendingDeleteTag(tag)}
+                    />
                   })}
                 </div>
                 <form className="jukebox__new-tag-form" onSubmit={handleCreateTag}>
@@ -459,12 +562,28 @@ function App() {
                   <OnScreenKeyboard value={newTag} onChange={setNewTag} maxLength={32} label="New tag keyboard" />
                   <RemoteButton className="jukebox__add-button" type="submit" disabled={!newTag.trim()}><Plus size={16} /> Add tag to video</RemoteButton>
                 </form>
-              </> : <div className="jukebox__manager-empty"><Tags size={32} /><strong>Select a video</strong><span>Assign one or more tags. Videos can stay untagged.</span></div>}
+              </> : <>
+                <div className="jukebox__manager-empty"><Tags size={32} /><strong>Select a video</strong><span>Assign one or more tags. Videos can stay untagged.</span></div>
+                {tags.length > 0 && <div className="jukebox__manager-tags" aria-label="Manage tags">
+                  <p className="jukebox__tag-hint">Hold a tag for 0.7 seconds to delete it.</p>
+                  {tags.map((tag) => <ManagerTagButton key={tag} tag={tag} assigned={false} onDelete={() => setPendingDeleteTag(tag)} />)}
+                </div>}
+              </>}
             </div>
           </div>
           {notice && <p className="jukebox__notice" role="status">{notice}</p>}
         </section>
       </div>}
+
+      {pendingDeleteTag && <ConfirmationDialog
+        title={`Delete “${pendingDeleteTag}”?`}
+        message="This removes the tag from the catalog and every video that uses it. Your videos will not be deleted."
+        confirmLabel={isDeletingTag ? 'Deleting…' : 'Delete tag'}
+        destructive
+        busy={isDeletingTag}
+        onCancel={() => setPendingDeleteTag(null)}
+        onConfirm={() => void handleDeleteTag()}
+      />}
 
       {showSearch && (
         <div className="jukebox__dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowSearch(false) }}>

@@ -43,7 +43,9 @@ export function RemoteNavigationProvider({
         'input:not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select, [contenteditable="true"]',
       )) return
 
-      const dialog = root.querySelector<HTMLElement>('[role="dialog"]')
+      const dialogs = Array.from(root.querySelectorAll<HTMLElement>('[role="dialog"]'))
+        .filter((element) => element.getClientRects().length > 0)
+      const dialog = dialogs[dialogs.length - 1]
       const scope = dialog ?? root
       const candidates = Array.from(scope.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
         .filter((element) => element.getClientRects().length > 0 && element.getAttribute('aria-disabled') !== 'true')

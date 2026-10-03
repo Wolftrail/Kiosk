@@ -1,5 +1,7 @@
 export { RemoteButton } from './RemoteButton'
 export type { RemoteButtonProps } from './RemoteButton'
+export { ConfirmationDialog } from './ConfirmationDialog'
+export type { ConfirmationDialogProps } from './ConfirmationDialog'
 export { OnScreenKeyboard } from './OnScreenKeyboard'
 export type { OnScreenKeyboardProps } from './OnScreenKeyboard'
 export { RemoteLink } from './RemoteLink'
