@@ -65,43 +65,71 @@ type ManagerTagButtonProps = {
 
 function ManagerTagButton({ tag, assigned, onToggle, onDelete }: ManagerTagButtonProps) {
   const holdTimerRef = useRef<number | undefined>(undefined)
-  const longPressRef = useRef(false)
+  const holdProgressTimerRef = useRef<number | undefined>(undefined)
+  const [isHoldPending, setIsHoldPending] = useState(false)
   const suppressClickRef = useRef(false)
+  const releaseGuardRef = useRef<((event: KeyboardEvent | MouseEvent) => void) | null>(null)
+  const releaseGuardTimerRef = useRef<number | undefined>(undefined)
 
-  const startHold = () => {
+  useEffect(() => () => {
+    window.clearTimeout(holdTimerRef.current)
+    window.clearTimeout(holdProgressTimerRef.current)
+    window.clearTimeout(releaseGuardTimerRef.current)
+    if (releaseGuardRef.current) {
+      window.removeEventListener('keyup', releaseGuardRef.current as EventListener, true)
+      window.removeEventListener('click', releaseGuardRef.current as EventListener, true)
+    }
+  }, [])
+
+  const startHold = (key?: string) => {
     if (holdTimerRef.current !== undefined) return
+    setIsHoldPending(false)
+    holdProgressTimerRef.current = window.setTimeout(() => setIsHoldPending(true), 150)
     holdTimerRef.current = window.setTimeout(() => {
       holdTimerRef.current = undefined
-      longPressRef.current = true
+      window.clearTimeout(holdProgressTimerRef.current)
+      setIsHoldPending(false)
+      suppressClickRef.current = true
+      const releaseEvent = key ? 'keyup' : 'click'
+      const guardRelease = (event: KeyboardEvent | MouseEvent) => {
+        if (key && (event as KeyboardEvent).key !== key) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        window.removeEventListener(releaseEvent, guardRelease as EventListener, true)
+        releaseGuardRef.current = null
+        window.clearTimeout(releaseGuardTimerRef.current)
+        suppressClickRef.current = false
+      }
+      releaseGuardRef.current = guardRelease
+      window.addEventListener(releaseEvent, guardRelease as EventListener, true)
+      releaseGuardTimerRef.current = window.setTimeout(() => {
+        window.removeEventListener(releaseEvent, guardRelease as EventListener, true)
+        releaseGuardRef.current = null
+        suppressClickRef.current = false
+      }, 1500)
+      onDelete()
     }, 700)
   }
 
   const stopHold = () => {
     window.clearTimeout(holdTimerRef.current)
+    window.clearTimeout(holdProgressTimerRef.current)
     holdTimerRef.current = undefined
-  }
-
-  const finishHold = () => {
-    stopHold()
-    if (longPressRef.current) {
-      longPressRef.current = false
-      suppressClickRef.current = true
-      onDelete()
-      window.setTimeout(() => { suppressClickRef.current = false }, 0)
-    }
+    holdProgressTimerRef.current = undefined
+    setIsHoldPending(false)
   }
 
   return (
     <RemoteButton
-      className={`jukebox__tag-chip ${assigned ? 'is-selected' : ''}`}
+      className={`jukebox__tag-chip ${assigned ? 'is-selected' : ''} ${isHoldPending ? 'is-hold-pending' : ''}`}
       aria-label={`${tag}${assigned ? ', assigned' : ''}. Hold for 0.7 seconds to delete.`}
       aria-pressed={assigned}
       onPointerDown={(event) => { if (event.button === 0) startHold() }}
-      onPointerUp={finishHold}
+      onPointerUp={stopHold}
       onPointerCancel={stopHold}
       onPointerLeave={stopHold}
-      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') startHold() }}
-      onKeyUp={finishHold}
+      onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && !event.repeat) startHold(event.key) }}
+      onKeyUp={stopHold}
       onBlur={stopHold}
       onContextMenu={(event) => event.preventDefault()}
       onClick={() => {
@@ -112,7 +140,7 @@ function ManagerTagButton({ tag, assigned, onToggle, onDelete }: ManagerTagButto
         onToggle?.()
       }}
     >
-      {tag}
+      <span>{tag}</span>
     </RemoteButton>
   )
 }

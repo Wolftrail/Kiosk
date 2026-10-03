@@ -141,6 +141,12 @@
 .jukebox__tag-list,
 .jukebox__manager-tags { display: flex; flex-wrap: wrap; gap: 7px; }
 .jukebox__tag-chip { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; gap: 5px; padding: 0 13px; border: 1px solid rgba(36, 51, 47, .2); color: #4e5b54; background: rgba(255, 255, 255, .56); font: inherit; font-size: 12px; cursor: pointer; }
+.jukebox__tag-chip { position: relative; overflow: hidden; isolation: isolate; }
+.jukebox__tag-chip > span { position: relative; z-index: 1; }
+.jukebox__tag-chip::before { position: absolute; z-index: 0; inset: auto 0 0; height: 5px; width: 100%; background: #24332f; box-shadow: 0 0 0 1px rgba(255, 249, 237, .9); content: ''; transform: scaleX(0); transform-origin: left; }
+.jukebox__tag-chip.is-hold-pending { box-shadow: inset 0 -5px rgba(255, 249, 237, .92); }
+.jukebox__tag-chip.is-hold-pending::before { animation: jukebox-tag-hold-progress 550ms linear both; }
+@keyframes jukebox-tag-hold-progress { to { transform: scaleX(1); } }
 .jukebox__tag-chip.is-selected { border-color: #bd4d3b; color: #fffaf0; background: #bd4d3b; }
 .jukebox__tag-chip.is-excluded { border-color: #914434; color: #713526; background: #f1d7cf; }
 .jukebox__tag-mode-mark { font-size: 15px; font-weight: 850; line-height: 1; }
@@ -253,6 +259,7 @@
 @media (prefers-reduced-motion: reduce) {
   .jukebox__playing-bars i { animation: none; }
   .jukebox__screen-caption { transition: none; }
+  .jukebox__tag-chip.is-hold-pending::before { animation: none; transform: scaleX(1); }
 }
 
 @media (min-width: 800px) and (max-height: 960px) {
