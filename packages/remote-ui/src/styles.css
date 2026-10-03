@@ -1,0 +1,198 @@
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.remote-app-shell__navigation {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.remote-app-shell {
+  --remote-ink: #203b35;
+  --remote-muted: #687b73;
+  --remote-paper: #f1efe7;
+  --remote-accent: #bd6243;
+  --remote-accent-soft: #efd4c2;
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  flex-direction: column;
+  padding: 22px 24px 18px;
+  overflow-x: hidden;
+  color: var(--remote-ink);
+  background-color: var(--remote-paper);
+  background-image: radial-gradient(#d9ddd1 0.7px, transparent 0.7px);
+  background-size: 23px 23px;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+.remote-app-shell[data-theme='jukebox'] {
+  --remote-accent: #bd6243;
+  --remote-accent-soft: #efd4c2;
+}
+
+.remote-app-shell[data-theme='workout'] {
+  --remote-accent: #657c3e;
+  --remote-accent-soft: #dfe6c7;
+}
+
+.remote-app-shell[data-theme='bible'] {
+  --remote-accent: #497785;
+  --remote-accent-soft: #d3e3e4;
+}
+
+.remote-app-shell__header,
+.remote-app-shell__main,
+.remote-app-shell__footer {
+  width: min(2080px, 100%);
+  margin-inline: auto;
+}
+
+.remote-app-shell__header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 54px;
+}
+
+.remote-app-shell__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  color: #28483d;
+  font-size: 17px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.remote-app-shell__brand-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 10px 10px 10px 3px;
+  color: #f8f5eb;
+  background: #28483d;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 22px;
+  font-weight: 400;
+}
+
+.remote-app-shell__back {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0 15px;
+  border: 1px solid rgba(32, 59, 53, 0.16);
+  border-radius: 6px;
+  color: var(--remote-ink);
+  background: rgba(255, 255, 255, 0.55);
+  font-size: 15px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.remote-app-shell__main {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  justify-content: center;
+  padding: 38px 0 56px;
+}
+
+.remote-app-shell__intro {
+  margin-bottom: 36px;
+  animation: remote-app-settle-in 420ms ease both;
+}
+
+.remote-app-shell__category {
+  margin: 0 0 12px;
+  color: var(--remote-accent);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.remote-app-shell__intro h1 {
+  margin: 0;
+  color: var(--remote-ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 48px;
+  font-weight: 400;
+  line-height: 1.08;
+}
+
+.remote-app-shell__description {
+  margin: 12px 0 0;
+  color: var(--remote-muted);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.remote-app-shell__placeholder {
+  color: var(--remote-muted);
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.remote-app-shell__content {
+  min-width: 0;
+  flex: 1 0 auto;
+}
+
+.remote-app-shell__footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 15px;
+  border-top: 1px solid rgba(32, 59, 53, 0.12);
+  color: var(--remote-muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.remote-app-shell :focus-visible {
+  outline: 3px solid var(--remote-accent);
+  outline-offset: 4px;
+}
+
+@keyframes remote-app-settle-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .remote-app-shell {
+    padding: 14px 16px 14px;
+  }
+
+  .remote-app-shell__main {
+    padding: 30px 0 38px;
+  }
+
+  .remote-app-shell__intro {
+    margin-bottom: 24px;
+  }
+
+  .remote-app-shell__intro h1 {
+    font-size: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .remote-app-shell__intro {
+    animation: none;
+  }
+}

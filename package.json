@@ -1,0 +1,34 @@
+{
+  "name": "kiosk",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "dev:all": "concurrently -k --names kiosk,jukebox,workout,bible \"npm run dev\" \"npm run dev --workspace @kiosk/jukebox\" \"npm run dev --workspace @kiosk/workout\" \"npm run dev --workspace @kiosk/bible\"",
+    "build": "npm run build:kiosk && npm run build:apps",
+    "build:kiosk": "tsc -b && vite build",
+    "build:apps": "npm run build --workspaces --if-present",
+    "lint": "oxlint",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "lucide-react": "^1.51.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+  }
+}
