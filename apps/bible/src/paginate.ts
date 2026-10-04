@@ -1,6 +1,6 @@
 import type { Verse } from './reading.ts'
 
-export type Fragment = Verse & { index: number }
+export type Fragment = Verse & { index: number; offset: number }
 
 export function paginate(verses: Verse[], fits: (fragments: Fragment[]) => boolean): Fragment[][] {
   const pages: Fragment[][] = []
@@ -13,7 +13,7 @@ export function paginate(verses: Verse[], fits: (fragments: Fragment[]) => boole
       let upper = words.length - position
       while (lower < upper) {
         const count = Math.ceil((lower + upper) / 2)
-        const fragment = { ...verse, index, text: words.slice(position, position + count).join(' ') }
+        const fragment = { ...verse, index, offset: position, text: words.slice(position, position + count).join(' ') }
         if (fits([...page, fragment])) lower = count
         else upper = count - 1
       }
@@ -23,7 +23,7 @@ export function paginate(verses: Verse[], fits: (fragments: Fragment[]) => boole
         continue
       }
       const count = Math.max(1, lower)
-      page.push({ ...verse, index, text: words.slice(position, position + count).join(' ') })
+      page.push({ ...verse, index, offset: position, text: words.slice(position, position + count).join(' ') })
       position += count
       if (position < words.length) {
         pages.push(page)

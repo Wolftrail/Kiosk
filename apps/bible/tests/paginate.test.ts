@@ -17,3 +17,13 @@ test('Empty readings and impossibly short viewports terminate safely', () => {
   assert.deepEqual(paginate([], () => true), [])
   assert.equal(paginate([{ chapter: 1, verse: 1, text: 'one two' }], () => false).flat().length, 2)
 })
+test('Fragment offsets locate the same saved word after repagination', () => {
+  const verses = [{ chapter: 1, verse: 1, text: 'one two three four five six seven eight nine ten' }]
+  const original = paginate(verses, (fragments) => fragments.map((part) => part.text).join(' ').split(' ').length <= 4)
+  assert.deepEqual(original.flat().map((part) => part.offset), [0, 4, 8])
+  const saved = original[2][0]
+  const resized = paginate(verses, (fragments) => fragments.map((part) => part.text).join(' ').split(' ').length <= 3)
+  const restored = resized.find((page) => page.some((part) => part.offset <= saved.offset && saved.offset < part.offset + part.text.split(' ').length))
+  assert.equal(restored?.[0].text, 'seven eight nine')
+  assert.equal(restored?.[0].offset, 6)
+})

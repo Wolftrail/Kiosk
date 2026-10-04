@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { BookOpen, Check, ChevronLeft, ChevronRight, Circle, Pause, Play, RotateCcw, Square, Volume2, ZoomIn, ZoomOut } from 'lucide-react'
 import { RemoteAppShell, RemoteButton, useToast } from '@kiosk/remote-ui'
-import { dayForDate, resolveReading, type Bible, type Language } from './reading'
+import { bookName, dayForDate, planReference, resolveReading, type Bible, type Language, type Verse } from './reading'
 import { paginate, type Fragment } from './paginate'
 import './App.css'
 
@@ -10,25 +10,41 @@ function localDate() {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-type Preferences = { language: Language; start: string; font: number; completed: string[] }
+type ReadingAnchor = Pick<Verse, 'chapter' | 'verse' | 'book' | 'location'> & { offset?: number }
+type ReadingPosition = { day: number; section: number; anchor: ReadingAnchor }
+type Preferences = { language: Language; start: string; font: number; completed: string[]; position?: ReadingPosition }
 function loadPreferences(): Preferences {
   const fallback: Preferences = { language: 'en', start: localDate(), font: 28, completed: [] }
   try {
     const stored = JSON.parse(localStorage.getItem('kiosk-bible') ?? 'null')
     if (!stored || typeof stored !== 'object') return fallback
+    const position = stored.position
+    const validPosition = position && Number.isInteger(position.day) && position.day >= 1 && position.day <= 365
+      && Number.isInteger(position.section) && position.section >= 0 && position.section < 4
+      && position.anchor && Number.isInteger(position.anchor.chapter) && position.anchor.chapter >= 0
+      && Number.isInteger(position.anchor.verse) && position.anchor.verse >= 0
     return {
       language: stored.language === 'nl' ? 'nl' : 'en',
       start: typeof stored.start === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(stored.start) && Number.isFinite(Date.parse(stored.start)) ? stored.start : fallback.start,
       font: [24, 28, 32, 36].includes(stored.font) ? stored.font : 28,
       completed: Array.isArray(stored.completed) ? stored.completed.filter((value: unknown) => typeof value === 'string') : [],
+      position: validPosition ? {
+        day: position.day, section: position.section,
+        anchor: {
+          chapter: position.anchor.chapter, verse: position.anchor.verse,
+          book: typeof position.anchor.book === 'string' ? position.anchor.book : undefined,
+          location: typeof position.anchor.location === 'string' ? position.anchor.location : undefined,
+          offset: Number.isInteger(position.anchor.offset) && position.anchor.offset >= 0 ? position.anchor.offset : 0,
+        },
+      } : undefined,
     }
   } catch { return fallback }
 }
 
 const cache = new Map<Language, Bible>()
 const labels = {
-  en: { day: 'Day', today: 'Today', start: 'Start date', sections: ['Old Testament', 'Psalms', 'Proverbs', 'New Testament'], read: 'Read aloud', pause: 'Pause', resume: 'Resume', stop: 'Stop', done: 'Mark read', undo: 'Mark unread', page: 'Page', of: 'of', loading: 'Loading Scripture...', retry: 'Retry', pending: 'Passage mapping pending', previous: 'Previous page', next: 'Next page', previousDay: 'Previous day', nextDay: 'Next day', larger: 'Larger text', smaller: 'Smaller text', plan: 'Orthodox Bible Reading Plan', edition: 'King James Version', complete: 'read', pdf: 'OSB reference', error: 'Scripture could not be loaded. Please try again.', voice: 'No English voice is installed on this device.', storage: 'Progress could not be saved on this device.' },
-  nl: { day: 'Dag', today: 'Vandaag', start: 'Startdatum', sections: ['Oude Testament', 'Psalmen', 'Spreuken', 'Nieuwe Testament'], read: 'Voorlezen', pause: 'Pauzeren', resume: 'Hervatten', stop: 'Stoppen', done: 'Markeer gelezen', undo: 'Markeer ongelezen', page: 'Pagina', of: 'van', loading: 'Bijbel laden...', retry: 'Opnieuw', pending: 'Verskoppeling nog niet gereed', previous: 'Vorige pagina', next: 'Volgende pagina', previousDay: 'Vorige dag', nextDay: 'Volgende dag', larger: 'Grotere tekst', smaller: 'Kleinere tekst', plan: 'Orthodox bijbelleesplan', edition: 'Statenvertaling', complete: 'gelezen', pdf: 'OSB-verwijzing', error: 'De Bijbel kon niet worden geladen. Probeer het opnieuw.', voice: 'Er is geen Nederlandse stem op dit apparaat geinstalleerd.', storage: 'Voortgang kon niet worden opgeslagen op dit apparaat.' },
+  en: { day: 'Day', today: 'Today', start: 'Start date', sections: ['Old Testament I', 'Old Testament II', 'Psalms', 'New Testament'], read: 'Read aloud', pause: 'Pause', resume: 'Resume', stop: 'Stop', done: 'Mark read', undo: 'Mark unread', page: 'Page', of: 'of', loading: 'Loading Scripture...', retry: 'Retry', pending: 'Reading unavailable', previous: 'Previous page', next: 'Next page', previousDay: 'Previous day', nextDay: 'Next day', larger: 'Larger text', smaller: 'Smaller text', plan: 'Catholic Bible in a Year', edition: 'King James Version', complete: 'read', pdf: 'Plan reference', error: 'Scripture could not be loaded. Please try again.', voice: 'No English voice is installed on this device.', storage: 'Progress could not be saved on this device.' },
+  nl: { day: 'Dag', today: 'Vandaag', start: 'Startdatum', sections: ['Oude Testament I', 'Oude Testament II', 'Psalmen', 'Nieuwe Testament'], read: 'Voorlezen', pause: 'Pauzeren', resume: 'Hervatten', stop: 'Stoppen', done: 'Markeer gelezen', undo: 'Markeer ongelezen', page: 'Pagina', of: 'van', loading: 'Bijbel laden...', retry: 'Opnieuw', pending: 'Lezing niet beschikbaar', previous: 'Vorige pagina', next: 'Volgende pagina', previousDay: 'Vorige dag', nextDay: 'Volgende dag', larger: 'Grotere tekst', smaller: 'Kleinere tekst', plan: 'Katholieke Bijbel in een jaar', edition: 'Statenvertaling', complete: 'gelezen', pdf: 'Planverwijzing', error: 'De Bijbel kon niet worden geladen. Probeer het opnieuw.', voice: 'Er is geen Nederlandse stem op dit apparaat geinstalleerd.', storage: 'Voortgang kon niet worden opgeslagen op dit apparaat.' },
 }
 
 export default function App() {
@@ -36,8 +52,8 @@ export default function App() {
   const [preferences, setPreferences] = useState(loadPreferences)
   const { language, start, font, completed } = preferences
   const text = labels[language]
-  const [day, setDay] = useState(() => dayForDate(start))
-  const [section, setSection] = useState(3)
+  const [day, setDay] = useState(() => preferences.position?.day ?? dayForDate(start))
+  const [section, setSection] = useState(() => preferences.position?.section ?? 0)
   const [plan, setPlan] = useState<string[][]>([])
   const [bible, setBible] = useState<Bible | null>(null)
   const [loading, setLoading] = useState(true)
@@ -52,13 +68,13 @@ export default function App() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const viewport = useRef<HTMLDivElement>(null)
   const measurement = useRef<HTMLDivElement>(null)
-  const anchor = useRef({ chapter: 1, verse: 1 })
+  const anchor = useRef<ReadingAnchor>(preferences.position?.anchor ?? { chapter: 0, verse: 0 })
   const audioGeneration = useRef(0)
   const utterance = useRef<SpeechSynthesisUtterance | null>(null)
   const readings = useMemo(() => bible && plan[day - 1] ? plan[day - 1].map((reference, index) => resolveReading(reference, index, bible, language)) : [], [bible, plan, day, language])
   const reading = readings[section]
   const readingKey = `${day}:${section}:${language}`
-  const completionKey = `${start}:${day}:${section}`
+  const completionKey = `catholic-gallery-v1:${start}:${day}:${section}`
   const isComplete = completed.includes(completionKey)
   const voice = voices.find((candidate) => candidate.lang.toLowerCase().startsWith(`${language}-`))
     ?? voices.find((candidate) => candidate.lang.toLowerCase() === language)
@@ -72,10 +88,12 @@ export default function App() {
   }
 
   useEffect(() => {
-    try { localStorage.setItem('kiosk-bible', JSON.stringify(preferences)) }
+    const { chapter, verse, book, location, offset } = anchor.current
+    const position = { day, section, anchor: { chapter, verse, book, location, offset } }
+    try { localStorage.setItem('kiosk-bible', JSON.stringify({ ...preferences, position })) }
     catch { toast(labels[preferences.language].storage, { variant: 'warning' }) }
     document.documentElement.lang = preferences.language
-  }, [preferences, toast])
+  }, [preferences, day, section, pageIndex, pages, toast])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -84,7 +102,7 @@ export default function App() {
       if (!response.ok) throw new Error('Data unavailable')
       return response.json()
     }
-    Promise.all([fetchJson('plan'), cache.has(language) ? cache.get(language) : fetchJson(language)])
+    Promise.all([fetchJson('catholic-plan'), cache.has(language) ? cache.get(language) : fetchJson(language)])
       .then(([loadedPlan, loadedBible]) => {
         if (controller.signal.aborted) return
         cache.set(language, loadedBible)
@@ -121,7 +139,7 @@ export default function App() {
       if ('speechSynthesis' in window) window.speechSynthesis.cancel()
       setAudio('idle')
       setSpokenVerse(-1)
-      anchor.current = { chapter: 1, verse: 1 }
+      anchor.current = { chapter: 0, verse: 0 }
       const expectedDay = previousToday
       setDay((current) => current === expectedDay ? today : current)
       previousToday = today
@@ -144,10 +162,10 @@ export default function App() {
       if (bounds.width < 1 || bounds.height < 1) return
       measure.style.width = `${bounds.width}px`
       const result = paginate(verses, (fragments) => {
-        measure.replaceChildren(...fragments.map((fragment) => {
+        measure.replaceChildren(...fragments.map((fragment, index) => {
           const paragraph = document.createElement('p')
           const number = document.createElement('sup')
-          number.textContent = `${fragment.chapter}:${fragment.verse} `
+          number.textContent = `${index > 0 && fragment.book !== fragments[index - 1].book && fragment.book ? bookName(fragment.book, language) + ' ' : ''}${fragment.chapter}:${fragment.verse} `
           paragraph.append(number, document.createTextNode(fragment.text))
           return paragraph
         }))
@@ -155,8 +173,14 @@ export default function App() {
       })
       currentPages.current = result
       setPages(result)
-      const target = result.findIndex((page) => page.some((verse) => verse.chapter === anchor.current.chapter && verse.verse === anchor.current.verse))
-      setPageIndex(Math.max(0, target))
+      const target = result.findIndex((page) => page.some((verse) => {
+        const matches = anchor.current.location ? verse.location === anchor.current.location : verse.chapter === anchor.current.chapter && verse.verse === anchor.current.verse
+        const offset = anchor.current.offset ?? 0
+        return matches && verse.offset <= offset && offset < verse.offset + verse.text.split(/\s+/).length
+      }))
+      const nextPage = Math.max(0, target)
+      if (result[nextPage]?.[0]) anchor.current = result[nextPage][0]
+      setPageIndex(nextPage)
     }
     fit()
     const observer = new ResizeObserver(fit)
@@ -166,19 +190,20 @@ export default function App() {
       observer.disconnect()
       window.removeEventListener('resize', fit)
     }
-  }, [reading, font])
+  }, [reading, font, language])
 
   function changeDay(next: number) {
     stopAudio()
     setNotice('')
-    anchor.current = { chapter: 1, verse: 1 }
+    anchor.current = { chapter: 0, verse: 0 }
     setPageIndex(0)
+    setSection(0)
     setDay(Math.max(1, Math.min(365, Math.trunc(Number.isFinite(next) ? next : 1))))
   }
 
   function changeSection(next: number) {
     stopAudio()
-    anchor.current = { chapter: 1, verse: 1 }
+    anchor.current = { chapter: 0, verse: 0 }
     setPageIndex(0)
     setSection(next)
     setNotice('')
@@ -189,7 +214,7 @@ export default function App() {
     stopAudio()
     setNotice('')
     const first = pages[pageIndex]?.[0]
-    if (first) anchor.current = first
+    if (first) anchor.current = { ...first, offset: 0 }
     setLoading(true)
     setError(false)
     setBible(null)
@@ -263,7 +288,21 @@ export default function App() {
 
   const audioLabel = audio === 'playing' ? text.pause : audio === 'paused' ? text.resume : text.read
   const currentPage = pages[pageIndex] ?? []
-  const readCount = [0, 1, 2, 3].filter((index) => completed.includes(`${start}:${day}:${index}`)).length
+  const currentBook = currentPage[0]?.book ?? reading?.book
+  const combinedReading = reading && new Set(reading.verses.map((verse) => verse.book)).size > 1
+  const heading = combinedReading && currentBook ? `${bookName(currentBook, language)} ${currentPage[0]?.chapter ?? reading.verses[0].chapter}` : reading?.reference
+  const readCount = [0, 1, 2, 3].filter((index) => completed.includes(`catholic-gallery-v1:${start}:${day}:${index}`)).length
+  const continueLabel = language === 'nl' ? 'Markeer gelezen en ga verder' : 'Mark read and continue'
+  const lastPage = pages.length > 0 && pageIndex >= pages.length - 1
+  const finalPage = lastPage && section === text.sections.length - 1
+  const nextLabel = finalPage ? (isComplete ? (language === 'nl' ? 'Lezing voltooid' : 'Reading complete') : text.done) : lastPage ? continueLabel : text.next
+
+  function finishAndContinue() {
+    if (loading || !reading?.verses.length) return
+    setPreferences((current) => ({ ...current, completed: current.completed.includes(completionKey) ? current.completed : [...current.completed, completionKey] }))
+    if (section < text.sections.length - 1) changeSection(section + 1)
+    else stopAudio()
+  }
 
   return (
     <div className="bible-app">
@@ -292,17 +331,17 @@ export default function App() {
             <nav className="bible-list" aria-label={text.plan}>
               {text.sections.map((label, index) => (
                 <RemoteButton key={label} aria-pressed={section === index} onClick={() => changeSection(index)}>
-                  <span className="bible-section-number">{completed.includes(`${start}:${day}:${index}`) ? <Check size={20} /> : `0${index + 1}`}</span>
-                  <span><strong>{label}</strong><span className="bible-reference">{plan[day - 1]?.[index] ?? '...'}</span><small>{index !== 3 ? (language === 'nl' ? 'Koppeling te verifiëren' : 'Mapping to verify') : text.edition}</small></span>
+                  <span className="bible-section-number">{completed.includes(`catholic-gallery-v1:${start}:${day}:${index}`) ? <Check size={20} /> : `0${index + 1}`}</span>
+                  <span><strong>{label}</strong><span className="bible-reference">{plan[day - 1]?.[index] ? planReference(plan[day - 1][index], language) : '...'}</span><small>CPDV · {text.pdf}</small></span>
                 </RemoteButton>
               ))}
             </nav>
-            <div className="bible-source"><span>ORTHODOX STUDY BIBLE</span><p>{language === 'nl' ? '365 dagen · Oude en Nieuwe Testament' : '365 days · Old and New Testament'}</p><p>{language === 'nl' ? 'Exacte OSB-koppelingen worden geverifieerd. Nog niet alle lezingen zijn beschikbaar.' : 'Exact OSB mappings are being verified. Not all readings are available yet.'}</p></div>
+            <div className="bible-source"><span>CATHOLIC GALLERY</span><p>{language === 'nl' ? '365 dagen · Inclusief deuterocanonieke boeken' : '365 days · Including deuterocanonical books'}</p></div>
           </aside>
 
           <section className="bible-reader" aria-label={text.sections[section]}>
             <header className="bible-reader-heading">
-              <div><p>{text.sections[section]} · {text.edition}</p><h2>{reading?.reference ?? text.sections[section]}</h2></div>
+              <div><p>{text.sections[section]} · {text.edition}</p><h2 title={reading?.reference}>{heading ?? text.sections[section]}</h2></div>
               <div className="bible-text-size" role="group" aria-label={language === 'nl' ? 'Tekstgrootte' : 'Text size'}>
                 <RemoteButton title={text.smaller} aria-label={text.smaller} disabled={font === 24} onClick={() => setPreferences((current) => ({ ...current, font: current.font - 4 }))}><ZoomOut size={21} /></RemoteButton>
                 <RemoteButton title={text.larger} aria-label={text.larger} disabled={font === 36} onClick={() => setPreferences((current) => ({ ...current, font: current.font + 4 }))}><ZoomIn size={21} /></RemoteButton>
@@ -313,7 +352,7 @@ export default function App() {
                 : error ? <div className="bible-empty" role="alert"><p>{text.error}</p><RemoteButton onClick={() => { setLoading(true); setError(false); setRetry((current) => current + 1) }}>{text.retry}</RemoteButton></div>
                   : reading && !reading.verses.length ? <div className="bible-empty"><BookOpen size={32} /><h3>{text.pending}</h3><p>{reading.note}</p><p className="bible-original">{text.pdf}: {reading.original}</p></div>
                     : <div className="bible-reading-text" key={readingKey} lang={language}>
-                      {currentPage.map((fragment, index) => <p key={`${fragment.index}:${index}`} data-speaking={spokenVerse === fragment.index}><sup>{fragment.chapter}:{fragment.verse} </sup>{fragment.text}</p>)}
+                      {currentPage.map((fragment, index) => <p key={`${fragment.index}:${index}`} data-speaking={spokenVerse === fragment.index}><sup title={fragment.book ? bookName(fragment.book, language) : undefined}>{index > 0 && fragment.book !== currentPage[index - 1].book && fragment.book ? `${bookName(fragment.book, language)} ` : ''}{fragment.chapter}:{fragment.verse} </sup>{fragment.text}</p>)}
                     </div>}
             </div>
             <div className="bible-measure bible-reading-text" ref={measurement} aria-hidden="true" style={{ fontSize: font }} />
@@ -321,12 +360,12 @@ export default function App() {
             <footer className="bible-reader-controls">
               <div className="bible-playback">
                 <RemoteButton className="bible-read-aloud" disabled={!reading?.verses.length || loading} onClick={speak}>{audio === 'playing' ? <Pause size={20} /> : audio === 'paused' ? <Play size={20} /> : <Volume2 size={20} />}<span>{audioLabel}</span></RemoteButton>
-                <RemoteButton title={text.stop} aria-label={text.stop} disabled={audio === 'idle'} onClick={stopAudio}><Square size={18} /></RemoteButton>
+                <RemoteButton className="bible-stop" title={text.stop} aria-label={text.stop} disabled={audio === 'idle'} onClick={stopAudio}><Square size={14} fill="currentColor" /><span>{text.stop}</span></RemoteButton>
               </div>
               <div className="bible-pages">
                 <RemoteButton title={text.previous} aria-label={text.previous} disabled={pageIndex <= 0 || !pages.length || loading} onClick={() => changePage(pageIndex - 1)}><ChevronLeft /></RemoteButton>
                 <span>{text.page} {pages.length ? pageIndex + 1 : 0} {text.of} {pages.length}</span>
-                <RemoteButton title={text.next} aria-label={text.next} disabled={pageIndex >= pages.length - 1 || loading} onClick={() => changePage(pageIndex + 1)}><ChevronRight /></RemoteButton>
+                <RemoteButton title={nextLabel} aria-label={nextLabel} disabled={!pages.length || loading || finalPage && isComplete} onClick={() => lastPage ? finishAndContinue() : changePage(pageIndex + 1)}>{finalPage ? <Check /> : <ChevronRight />}</RemoteButton>
               </div>
               <RemoteButton className="bible-mark-read" title={isComplete ? text.undo : text.done} aria-label={isComplete ? text.undo : text.done} disabled={!reading?.verses.length || loading} aria-pressed={isComplete} onClick={() => setPreferences((current) => ({ ...current, completed: isComplete ? current.completed.filter((key) => key !== completionKey) : [...current.completed, completionKey] }))}>{isComplete ? <Check size={20} /> : <Circle size={20} />}<span>{isComplete ? text.undo : text.done}</span></RemoteButton>
             </footer>

@@ -1,28 +1,31 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { load } from 'cheerio'
 
-const source = 'https://readthecatholicbibleinayear.wordpress.com/302-2/'
-const response = await fetch(source)
-if (!response.ok) throw new Error(`Plan download failed: ${response.status}`)
-const document = load(await response.text())
+const source = 'https://www.catholicgallery.org/yearly-plan/'
+const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
 const days = new Map()
-for (const element of document('.entry-content a').toArray()) {
-  const link = document(element)
-  const day = link.text().trim().match(/^Day\s+(\d+)$/i)
-  if (!day) continue
-  let line = ''
-  for (let sibling = element.nextSibling; sibling && sibling.name !== 'br'; sibling = sibling.nextSibling) line += document(sibling).text()
-  const references = line.trim().replace(/\s*\*Note.*$/i, '').split(/\s*\|\s*/).map((reference) => reference.replace(/[\u2013\u2014]/g, '-').replace(/\s+/g, ' ').trim())
-  if (Number(day[1]) === 272 && references.length === 2) references.splice(1, 0, null)
-  if (references.length !== 3) throw new Error(`Day ${day[1]} does not have three reading slots: ${references}`)
-  days.set(Number(day[1]), references.map((reference) => reference.trim()))
+for (const month of months) {
+  const response = await fetch(`${source}${month}/`)
+  if (!response.ok) throw new Error(`Plan download failed: ${month}: ${response.status}`)
+  const document = load(await response.text())
+  const content = document('.entry-content')
+  content.find('script, style').remove()
+  const text = content.text().replace(/[\u2013\u2014]/g, '-').replace(/\s+/g, ' ')
+  for (const match of text.matchAll(/Day\s+(\d+)\s+Old Testament:\s*(.*?)Psalms:\s*(.*?)New Testament:\s*(.*?)Read Bible in a Year/g)) {
+    const oldTestament = match[2].split(/\s*&\s*/)
+    const readings = [...oldTestament, match[3], match[4]].map((reference) => reference.trim().replace(/\s+-\s+/g, ' '))
+    if (readings.length !== 4) throw new Error(`Expected four readings on day ${match[1]}: ${readings}`)
+    days.set(Number(match[1]), readings)
+  }
+  console.log(`${month}: ${days.size} days imported`)
 }
-if (days.size !== 365) throw new Error(`Expected 365 daily readings, found ${days.size}`)
-const plan = Array.from({ length: 365 }, (_, index) => days.get(index + 1))
-const destination = resolve(import.meta.dirname, '../public/data')
-writeFileSync(resolve(destination, 'catholic-source-plan.json'), JSON.stringify(plan))
+if (days.size !== 365) throw new Error(`Expected 365 days, found ${days.size}`)
+const plan = Array.from({ length: 365 }, (_, index) => {
+  const readings = days.get(index + 1)
+  if (!readings) throw new Error(`Missing day ${index + 1}`)
+  return readings
+})
+writeFileSync(resolve(import.meta.dirname, '../public/data/catholic-plan.json'), JSON.stringify(plan))
 console.log('First day:', plan[0], 'Last day:', plan.at(-1))
-console.log('Book references:', [...new Set(plan.flat().filter(Boolean).map((reference) => reference.replace(/\s+\d.*$/, '')))].join(', '))
-const bible = JSON.parse(readFileSync(resolve(destination, 'en.json'), 'utf8'))
-console.log('Available English books:', Object.keys(bible).join(', '))
+console.log('Books:', [...new Set(plan.flat().map((reference) => reference.replace(/\s+\d.*$/, '')))].join(', '))
