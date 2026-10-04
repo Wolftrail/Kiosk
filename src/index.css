@@ -1,5 +1,5 @@
 :root {
-  font-family: 'Aptos', 'Segoe UI', sans-serif;
+  font-family: var(--kiosk-font-ui);
   color: #1d302d;
   background: #fbfbf8;
   font-synthesis: none;

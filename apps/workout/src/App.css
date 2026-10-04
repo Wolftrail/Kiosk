@@ -27,7 +27,7 @@
 .workout-fit-viewport { position: relative; flex: 1 1 0; min-height: 0; overflow: clip; }
 .workout-fit-content { position: absolute; top: 0; left: 0; width: 100%; padding: 6px; transform-origin: top center; }
 .workout .remote-app-shell__intro { margin-bottom: 0; }
-.workout .remote-app-shell__intro h1 { font-family: 'Trebuchet MS', sans-serif; font-size: 32px; font-weight: 700; }
+.workout .remote-app-shell__intro h1 { font-family: var(--kiosk-font-ui); font-size: 32px; font-weight: 700; }
 .workout .remote-app-shell__category { margin-bottom: 8px; }
 .workout .remote-app-shell__footer { color: var(--workout-muted); }
 .workout button { font: inherit; cursor: pointer; }
@@ -37,7 +37,7 @@
 .workout-sound { display: grid; place-items: center; width: 56px; height: 56px; border: 1px solid var(--workout-line); border-radius: 6px; color: var(--workout-ink); background: #fff8; }
 .workout-overview { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 64px; align-items: center; }
 .workout-eyebrow { margin: 0 0 14px; color: var(--workout-accent); font-weight: 700; font-size: 16px; }
-.workout h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-weight: 400; line-height: 1.08; overflow-wrap: anywhere; }
+.workout h2 { margin: 0; font-family: var(--kiosk-font-ui); font-weight: 400; line-height: 1.08; overflow-wrap: anywhere; }
 .workout-introduction h2 { font-size: 68px; }
 .workout-introduction h2 span { display: block; }
 .workout-lead { margin: 22px 0; font-size: 24px; line-height: 1.5; }

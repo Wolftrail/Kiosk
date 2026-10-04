@@ -110,6 +110,11 @@ See yt-dlp's [cookie FAQ](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pas
 
 Use `RemoteAppShell` from `@kiosk/remote-ui` for a full-viewport app frame with shared Kiosk branding, Back navigation, and remote focus handling. Set its title, category, description, and theme; put app-specific UI in its children. Import `@kiosk/remote-ui/styles.css` in the app entry point for the shared layout and viewport reset. For custom screens, `RemoteButton`, `RemoteLink`, and `RemoteNavigationProvider` are also available independently; the controls themselves remain unstyled.
 
+The shared stylesheet also bundles the default Noto Sans UI font, Noto Serif
+reading font, Thai fallback, and lightweight design tokens. Follow the
+[Commonroom style guide](STYLEGUIDE.md) for typography, TV layouts, remote focus,
+and the separate management-screen conventions.
+
 ## Add an app
 
 Each app is an independent npm workspace under `apps/`. The kiosk catalog lives in `src/apps/registry.ts`; add the app's name, description, category, icon, project path, and launch URL there.

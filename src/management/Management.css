@@ -1,4 +1,4 @@
-.management { --manage-ink: #243b36; --manage-accent: #176b60; min-height: 100dvh; color: var(--manage-ink); background: #f4f6f5; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; letter-spacing: 0; }
+.management { --manage-ink: #243b36; --manage-accent: #176b60; min-height: 100dvh; color: var(--manage-ink); background: #f4f6f5; font-family: var(--kiosk-font-ui); font-size: 14px; letter-spacing: 0; }
 .management__header { display: flex; align-items: center; gap: 20px; padding: 18px 28px; border-bottom: 1px solid #d8e0dc; background: white; }
 .management__header a { color: var(--manage-accent); }
 .management__brand { font-size: 20px; font-weight: 800; text-decoration: none; }

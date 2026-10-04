@@ -1,0 +1,28 @@
+@import '@fontsource-variable/noto-sans/wght.css';
+@import '@fontsource-variable/noto-serif/wght.css';
+@import '@fontsource-variable/noto-sans-thai/wght.css';
+
+:root {
+  --kiosk-font-ui: 'Noto Sans Variable', 'Noto Sans Thai Variable', sans-serif;
+  --kiosk-font-reading: 'Noto Serif Variable', 'Noto Sans Thai Variable', serif;
+  --kiosk-font-mono: 'Cascadia Code', Consolas, monospace;
+  --kiosk-space-1: 4px;
+  --kiosk-space-2: 8px;
+  --kiosk-space-3: 12px;
+  --kiosk-space-4: 16px;
+  --kiosk-space-6: 24px;
+  --kiosk-space-8: 32px;
+  --kiosk-radius-control: 6px;
+  --kiosk-radius-tile: 8px;
+  --kiosk-target-tv: 56px;
+  --kiosk-target-pointer: 44px;
+  --kiosk-focus-width: 3px;
+  --kiosk-focus-offset: 4px;
+  font-family: var(--kiosk-font-ui);
+  font-synthesis: none;
+  letter-spacing: 0;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}

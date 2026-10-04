@@ -58,7 +58,7 @@
 .jukebox__screen-topline span { display: flex; align-items: center; gap: 8px; color: #fff9ed; font-size: 10px; font-weight: 750; letter-spacing: 1.4px; text-shadow: 0 1px 6px #000; }
 .jukebox__screen-caption { position: absolute; z-index: 2; right: auto; bottom: 114px; left: clamp(20px, 5vw, 90px); display: grid; max-width: min(1100px, 76vw); gap: 4px; margin-top: auto; text-shadow: 0 1px 12px rgba(0, 0, 0, .55); opacity: 0; transform: translateY(8px); transition: opacity 300ms ease, transform 300ms ease; }
 .jukebox__screen-caption.is-visible { opacity: 1; transform: translateY(0); }
-.jukebox__screen-caption strong { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(30px, 3.1vw, 58px); font-weight: 400; line-height: 1.05; }
+.jukebox__screen-caption strong { font-family: var(--kiosk-font-ui); font-size: clamp(30px, 3.1vw, 58px); font-weight: 400; line-height: 1.05; }
 .jukebox__screen-caption > span:last-child { color: rgba(255, 249, 237, .75); font-size: 16px; }
 .jukebox__eyebrow { color: #f0c4aa; font-size: 10px; font-weight: 800; letter-spacing: 1.45px; }
 
@@ -194,7 +194,7 @@
 .jukebox__screen-topline { justify-content: space-between; }
 .jukebox__screen-topline span { gap: 8px; font-size: 10px; font-weight: 750; letter-spacing: 1.4px; }
 .jukebox__screen-caption { display: grid; gap: 4px; align-self: flex-start; margin-top: auto; }
-.jukebox__screen-caption strong { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(30px, 4vw, 48px); font-weight: 400; line-height: 1.05; }
+.jukebox__screen-caption strong { font-family: var(--kiosk-font-ui); font-size: clamp(30px, 4vw, 48px); font-weight: 400; line-height: 1.05; }
 .jukebox__screen-caption > span:last-child { color: rgba(255, 249, 237, .75); font-size: 14px; }
 .jukebox__eyebrow { color: #9b5d4a; font-size: 10px; font-weight: 800; letter-spacing: 1.45px; }
 .jukebox__screen .jukebox__eyebrow { color: #f0c4aa; }

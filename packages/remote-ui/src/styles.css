@@ -1,3 +1,5 @@
+@import './typography.css';
+
 .remote-toast-region {
   position: fixed;
   z-index: 10000;
@@ -10,7 +12,7 @@
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
   pointer-events: none;
-  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-family: var(--kiosk-font-ui);
 }
 
 .remote-toast {
@@ -100,7 +102,7 @@ body,
   background-color: var(--remote-paper);
   background-image: radial-gradient(#d9ddd1 0.7px, transparent 0.7px);
   background-size: 23px 23px;
-  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-family: var(--kiosk-font-ui);
 }
 
 .remote-app-shell[data-theme='jukebox'] {
@@ -152,7 +154,7 @@ body,
   border-radius: 10px 10px 10px 3px;
   color: #f8f5eb;
   background: #28483d;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--kiosk-font-ui);
   font-size: 22px;
   font-weight: 400;
 }
@@ -194,7 +196,7 @@ body,
 .remote-app-shell__intro h1 {
   margin: 0;
   color: var(--remote-ink);
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--kiosk-font-ui);
   font-size: 48px;
   font-weight: 400;
   line-height: 1.08;
@@ -337,7 +339,7 @@ body,
 }
 
 .remote-onscreen-keyboard__key[lang='th'] {
-  font-family: 'Leelawadee UI', Tahoma, sans-serif;
+  font-family: var(--kiosk-font-ui);
   font-size: 26px;
 }
 

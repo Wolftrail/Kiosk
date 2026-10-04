@@ -17,7 +17,27 @@ import { RemoteAppShell } from '@kiosk/remote-ui'
 </RemoteAppShell>
 ```
 
-Available themes are `jukebox`, `workout`, and `scripture`. The shell provides the full-viewport layout, common header and footer, Back navigation, initial focus, and D-pad movement. Its children remain app-specific.
+Available themes are `jukebox`, `workout`, `scripture`, and `recite`. The shell provides the full-viewport layout, common header and footer, Back navigation, initial focus, and D-pad movement. Its children remain app-specific.
+
+## Typography And Style
+
+The shared stylesheet bundles Noto Sans for UI text, Noto Serif for reading
+content, and Noto Sans Thai as a Thai-script fallback. Fontsource packages are
+dependencies of this package, not of each app. Vite serves their WOFF2 assets
+locally in development and includes them in each independent production build.
+No external font service or system font installation is needed.
+
+Use `var(--kiosk-font-ui)` for headings, labels, and controls, and
+`var(--kiosk-font-reading)` for passages/flashcard text. The shared root sets
+the default UI font and form controls inherit it. Technical text can use
+`var(--kiosk-font-mono)`. Avoid hard-coded OS font families in app styles.
+
+Import `@kiosk/remote-ui/typography.css` only when you want the font declarations
+and tokens without the other shell styles. Normal apps already receive these
+through `@kiosk/remote-ui/styles.css`; do not import both.
+
+See the [Commonroom style guide](../../STYLEGUIDE.md) for the TV/management split,
+type scale, spacing/target tokens, focus behavior, and validation requirements.
 
 For custom layouts, the unstyled controls are also available independently.
 

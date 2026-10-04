@@ -40,7 +40,7 @@
 .scripture-list { display: flex; flex-direction: column; gap: 7px; }
 .scripture-list button { width: 100%; height: auto; min-height: 86px; padding: 14px 12px; justify-content: flex-start; gap: 14px; border: 0; border-left: 3px solid transparent; border-radius: 0; text-align: left; background: transparent; }
 .scripture-list button[aria-pressed='true'] { background: #e0eae5; border-left-color: var(--scripture-accent); }
-.scripture-section-number { font-family: Georgia, serif; font-size: 18px; flex: 0 0 25px; color: #627870; }
+.scripture-section-number { font-family: var(--kiosk-font-ui); font-size: 18px; flex: 0 0 25px; color: #627870; }
 .scripture-list button > span:last-child { min-width: 0; }
 .scripture-list strong { display: block; font-size: 15px; font-weight: 600; }
 .scripture-reference { display: block; margin-top: 5px; font-size: 17px; overflow-wrap: anywhere; }
@@ -52,13 +52,13 @@
 .scripture-reader-heading { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #e1e7e3; }
 .scripture-reader-heading > div:first-child { min-width: 0; }
 .scripture-reader-heading p { font-size: 12px; color: var(--scripture-muted); margin: 0 0 6px; }
-.scripture-reader-heading h2 { font: 400 30px/1.15 Georgia, 'Times New Roman', serif; margin: 0; overflow-wrap: anywhere; }
+.scripture-reader-heading h2 { font: 400 30px/1.15 var(--kiosk-font-ui); margin: 0; overflow-wrap: anywhere; }
 .scripture-text-size { flex: 0 0 auto; }
 .scripture-reading-area { flex: 1 1 0; min-height: 0; min-width: 0; margin-block: 20px 10px; width: min(100%, 1050px); align-self: center; }
-.scripture-reading-text { font-family: Georgia, 'Times New Roman', serif; line-height: 1.55; overflow-wrap: anywhere; }
+.scripture-reading-text { font-family: var(--kiosk-font-reading); line-height: 1.55; overflow-wrap: anywhere; }
 .scripture-reading-text p { margin: 0 0 .45em; }
 .scripture-reading-text p:last-child { margin-bottom: 0; }
-.scripture-reading-text sup { font: 500 12px/1 'Trebuchet MS', sans-serif; color: var(--scripture-accent); vertical-align: .4em; white-space: nowrap; }
+.scripture-reading-text sup { font: 500 12px/1 var(--kiosk-font-ui); color: var(--scripture-accent); vertical-align: .4em; white-space: nowrap; }
 .scripture-reading-text p[data-speaking='true'] { background: #edf3ed; }
 .scripture-measure { position: fixed; left: -10000px; top: 0; visibility: hidden; pointer-events: none; }
 .scripture-notice { flex: 0 0 auto; min-height: 24px; font-size: 12px; line-height: 1.4; color: #6b6257; padding-bottom: 6px; }
@@ -70,7 +70,7 @@
 .scripture-pages span { min-width: 112px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
 .scripture-mark-read[aria-pressed='true'] { color: var(--scripture-accent); background: #eaf1ed; }
 .scripture-empty { height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 14px; text-align: center; color: var(--scripture-muted); }
-.scripture-empty h3 { margin: 0; font: 400 24px/1.2 Georgia, serif; }
+.scripture-empty h3 { margin: 0; font: 400 24px/1.2 var(--kiosk-font-ui); }
 .scripture-empty p { max-width: 540px; margin: 0; font-size: 17px; line-height: 1.5; }
 .scripture-empty .scripture-original { font-size: 13px; }
 @media (max-height: 750px) {

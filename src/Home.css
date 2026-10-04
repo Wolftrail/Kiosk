@@ -8,13 +8,13 @@
   overflow: hidden;
   color: var(--ink);
   background: linear-gradient(120deg, #28362e70, transparent 55%), repeating-linear-gradient(135deg, #ffffff03 0 1px, transparent 1px 18px), #171d1a;
-  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-family: var(--kiosk-font-ui);
   letter-spacing: 0;
 }
 .kiosk-header, .kiosk-main, .kiosk-footer { width: min(2000px, 100%); margin-inline: auto; }
 .kiosk-header { display: flex; flex: 0 0 64px; align-items: center; justify-content: space-between; gap: 24px; }
 .kiosk-brand { display: inline-flex; align-items: center; gap: 14px; color: #f5f7f5; font-size: 18px; font-weight: 700; text-decoration: none; }
-.kiosk-brand__mark { display: grid; width: 48px; height: 48px; flex: 0 0 auto; place-items: center; border-radius: 8px; color: #171d1a; background: #d4fa68; font-family: Georgia, 'Times New Roman', serif; font-size: 30px; font-weight: 400; }
+.kiosk-brand__mark { display: grid; width: 48px; height: 48px; flex: 0 0 auto; place-items: center; border-radius: 8px; color: #171d1a; background: #d4fa68; font-family: var(--kiosk-font-ui); font-size: 30px; font-weight: 400; }
 .kiosk-brand__subtitle { display: block; margin-top: 4px; color: #b3bab6; font-size: 11px; font-weight: 400; }
 .kiosk-datetime { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 .kiosk-time { color: #f5f7f5; font-size: 28px; font-variant-numeric: tabular-nums; }
@@ -22,7 +22,7 @@
 .kiosk-main { display: flex; flex: 1 1 0; min-height: 0; flex-direction: column; padding: 30px 0 28px; gap: 30px; }
 .home-intro { flex: 0 0 auto; animation: settle-in 400ms ease both; }
 .home-intro__eyebrow { margin: 0 0 12px; color: #d4fa68; font-size: 13px; font-weight: 700; }
-.home-intro h1 { margin: 0; color: #f5f7f5; font-family: 'Trebuchet MS', sans-serif; font-size: 48px; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
+.home-intro h1 { margin: 0; color: #f5f7f5; font-family: var(--kiosk-font-ui); font-size: 48px; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
 .app-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); gap: 22px; flex: 1 1 0; min-height: 0; }
 .app-tile {
   --tile-color: #d4fa68;
@@ -83,7 +83,7 @@
 .setup-modal__description { margin: 12px 0 0; color: #53685b; font-size: 16px; line-height: 1.5; }
 .setup-modal__path { display: grid; gap: 7px; margin-top: 24px; padding: 13px 15px; border: 1px solid #d1dbd3; border-radius: 5px; background: #e8eeea; }
 .setup-modal__path span { color: #53685b; font-size: 10px; font-weight: 700; }
-.setup-modal__path code { overflow-wrap: anywhere; color: #203b35; font-size: 13px; }
+.setup-modal__path code { overflow-wrap: anywhere; color: #203b35; font-family: var(--kiosk-font-mono); font-size: 13px; }
 .setup-modal__return { min-height: 48px; margin-top: 22px; padding: 0 18px; border: 0; border-radius: 5px; color: #fff; background: #294a3e; font-size: 16px; font-weight: 700; cursor: pointer; }
 .setup-modal button:focus-visible { outline: 3px solid #294a3e; outline-offset: 4px; }
 @keyframes settle-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

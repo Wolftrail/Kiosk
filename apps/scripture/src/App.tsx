@@ -183,10 +183,15 @@ export default function App() {
       setPageIndex(nextPage)
     }
     fit()
+    let active = true
+    void document.fonts.ready.then(() => { if (active) fit() })
+    document.fonts.addEventListener('loadingdone', fit)
     const observer = new ResizeObserver(fit)
     observer.observe(area)
     window.addEventListener('resize', fit)
     return () => {
+      active = false
+      document.fonts.removeEventListener('loadingdone', fit)
       observer.disconnect()
       window.removeEventListener('resize', fit)
     }

@@ -8,6 +8,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./typography.css": "./src/typography.css",
     "./styles.css": "./src/styles.css"
   },
   "peerDependencies": {
@@ -15,6 +16,9 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
+    "@fontsource-variable/noto-sans": "^5.3.0",
+    "@fontsource-variable/noto-sans-thai": "^5.3.0",
+    "@fontsource-variable/noto-serif": "^5.3.0",
     "lucide-react": "^1.51.0"
   },
   "devDependencies": {
