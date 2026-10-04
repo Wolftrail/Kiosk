@@ -11,6 +11,7 @@ type Track = {
   tint: string
   tags: string[]
   videoUrl?: string
+  thumbnailUrl?: string
 }
 
 type DownloadResponse = {
@@ -19,6 +20,7 @@ type DownloadResponse = {
   artist: string
   duration: string
   videoUrl: string
+  thumbnailUrl?: string
   tags?: string[]
   alreadyExists?: boolean
   error?: string
@@ -483,7 +485,7 @@ function App() {
       <div className="jukebox">
         <section className="jukebox__player" aria-label="Video player">
           <div className={`jukebox__screen jukebox__screen--${selectedTrack?.tint ?? 'rose'} ${selectedTrack?.videoUrl ? 'jukebox__screen--video' : ''}`} onClickCapture={revealCaption}>
-            {selectedTrack?.videoUrl && <video ref={videoRef} className="jukebox__video" src={selectedTrack.videoUrl} preload="metadata" playsInline aria-label={`${selectedTrack.title} by ${selectedTrack.artist}`} onPlay={handleVideoPlay} onPause={() => { setIsPlaying(false); setIsCaptionPersistent(true); setIsCaptionVisible(false); window.clearTimeout(captionTimerRef.current) }} onEnded={() => moveTrack(1)} onError={() => { setIsPlaying(false); setNotice('The selected video file could not be loaded.') }} />}
+            {selectedTrack?.videoUrl && <video ref={videoRef} className="jukebox__video" src={selectedTrack.videoUrl} poster={selectedTrack.thumbnailUrl} preload="metadata" playsInline aria-label={`${selectedTrack.title} by ${selectedTrack.artist}`} onPlay={handleVideoPlay} onPause={() => { setIsPlaying(false); setIsCaptionPersistent(true); setIsCaptionVisible(false); window.clearTimeout(captionTimerRef.current) }} onEnded={() => moveTrack(1)} onError={() => { setIsPlaying(false); setNotice('The selected video file could not be loaded.') }} />}
             <div className="jukebox__screen-topline">
               <span><Radio size={15} /> NOW PLAYING</span>
               <RemoteButton className="jukebox__browse-button" aria-label="Manage videos and tags" onClick={() => setShowManage(true)}><Tags size={17} /><span>Manage</span></RemoteButton>
@@ -559,7 +561,7 @@ function App() {
             <div className="jukebox__manager-videos" aria-label="Videos">
               {tracks.filter((track) => track.videoUrl).map((track, index) => (
                 <RemoteButton key={track.id} autoFocus={index === 0} data-remote-initial={index === 0 ? '' : undefined} className={`jukebox__manager-video ${managedTrack?.id === track.id ? 'is-selected' : ''}`} aria-pressed={managedTrack?.id === track.id} onClick={() => { setManagedTrackId(track.id); setNotice('') }}>
-                  {/^[A-Za-z0-9_-]{11}$/.test(track.id) ? <img src={`https://i.ytimg.com/vi/${track.id}/mqdefault.jpg`} alt="" loading="lazy" /> : <span className="jukebox__manager-thumb"><Disc3 size={26} /></span>}
+                  {track.thumbnailUrl ? <img src={track.thumbnailUrl} alt="" loading="lazy" /> : <span className="jukebox__manager-thumb"><Disc3 size={26} /></span>}
                   <span className="jukebox__manager-video-copy">{track.title}<small>{track.artist}</small></span>
                   <span className="jukebox__manager-video-tags">{track.tags.length ? track.tags.join(' · ') : 'Untagged'}</span>
                 </RemoteButton>

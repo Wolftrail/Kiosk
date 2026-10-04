@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, relative, resolve, sep } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { fileURLToPath } from 'node:url'
@@ -12,6 +12,7 @@ type LibraryVideo = {
   artist: string
   duration: string
   filename: string
+  thumbnailFilename?: string
   tags?: string[]
 }
 
@@ -28,6 +29,95 @@ const libraryPath = resolve(projectRoot, 'data/library.json')
 const tagsPath = resolve(projectRoot, 'data/tags.json')
 let libraryMutation = Promise.resolve()
 const inFlightDownloads = new Map<string, Promise<LibraryVideo>>()
+const thumbnailJobs = new Map<string, Promise<string | undefined>>()
+
+function runThumbnailCommand(command: string, args: string[]) {
+  return new Promise<void>((resolvePromise, reject) => {
+    const child = spawn(command, args, { cwd: projectRoot, windowsHide: true, stdio: 'ignore' })
+    const timer = setTimeout(() => {
+      child.kill()
+      reject(new Error(`${command} thumbnail generation timed out.`))
+    }, 30_000)
+    child.once('error', (error) => {
+      clearTimeout(timer)
+      reject(error)
+    })
+    child.once('close', (code) => {
+      clearTimeout(timer)
+      if (code === 0) resolvePromise()
+      else reject(new Error(`${command} could not create a thumbnail.`))
+    })
+  })
+}
+
+async function ensureThumbnail(video: LibraryVideo, url?: string): Promise<string | undefined> {
+  if (!/^[A-Za-z0-9_-]{11}$/.test(video.id) || video.filename !== basename(video.filename) || video.filename.includes('\\')) return undefined
+  const filename = `${video.id}.thumb.jpg`
+  const thumbnailPath = resolve(videoDirectory, filename)
+  if (await stat(thumbnailPath).then((details) => details.isFile() && details.size > 0).catch(() => false)) return filename
+  const existingJob = thumbnailJobs.get(video.id)
+  if (existingJob) return existingJob
+
+  const job = (async () => {
+    const temporaryPath = resolve(videoDirectory, `${video.id}.thumb.pending.jpg`)
+    try {
+      let hasArtwork = false
+      if (url) {
+        try {
+          await runThumbnailCommand('yt-dlp', [
+            '--no-playlist', '--no-warnings', '--skip-download', '--write-thumbnail',
+            '--convert-thumbnails', 'jpg', '--socket-timeout', '10', '--retries', '0',
+            '--output', `thumbnail:${resolve(videoDirectory, `${video.id}.thumb.pending.%(ext)s`)}`,
+            url,
+          ])
+          hasArtwork = await stat(temporaryPath).then((details) => details.isFile() && details.size > 0).catch(() => false)
+        } catch {
+          hasArtwork = false
+        }
+      }
+      if (!hasArtwork) {
+        await runThumbnailCommand('ffmpeg', [
+          '-nostdin', '-hide_banner', '-loglevel', 'error', '-y',
+          '-i', resolve(videoDirectory, video.filename),
+          '-vf', 'scale=480:-2,thumbnail=60', '-frames:v', '1', temporaryPath,
+        ])
+      }
+      const details = await stat(temporaryPath)
+      if (!details.isFile() || details.size === 0) throw new Error('Thumbnail is empty.')
+      await rename(temporaryPath, thumbnailPath)
+      return filename
+    } catch (error) {
+      console.warn(`Could not create thumbnail for ${video.id}:`, error)
+      return undefined
+    } finally {
+      await rm(temporaryPath, { force: true }).catch(() => undefined)
+    }
+  })()
+  thumbnailJobs.set(video.id, job)
+  return job
+}
+
+async function readLibraryWithThumbnails() {
+  const library = await readLibrary()
+  const thumbnails = new Map<string, string>()
+  for (const video of library) {
+    const thumbnailFilename = await ensureThumbnail(video)
+    if (thumbnailFilename && thumbnailFilename !== video.thumbnailFilename) thumbnails.set(video.id, thumbnailFilename)
+  }
+  if (thumbnails.size === 0) return library
+  return updateLibrary((current) => current.map((video) => thumbnails.has(video.id)
+    ? { ...video, thumbnailFilename: thumbnails.get(video.id) }
+    : video))
+}
+
+function publicVideo(video: LibraryVideo) {
+  const { filename, thumbnailFilename, ...metadata } = video
+  return {
+    ...metadata,
+    videoUrl: `${videoPrefix}${encodeURIComponent(filename)}`,
+    ...(thumbnailFilename ? { thumbnailUrl: `${videoPrefix}${encodeURIComponent(thumbnailFilename)}` } : {}),
+  }
+}
 
 function sendJson(response: ServerResponse, status: number, data: unknown) {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' })
@@ -57,7 +147,7 @@ function runYtDlp(args: string[], maxOutput = 4_000_000) {
   })
 }
 
-async function readLibrary(): Promise<LibraryVideo[]> {
+async function readLibrary(): Promise<Array<LibraryVideo & { tags: string[] }>> {
   try {
     const library = JSON.parse(await readFile(libraryPath, 'utf8')) as LibraryVideo[]
     return library.map((video) => ({ ...video, tags: Array.isArray(video.tags) ? video.tags : [] }))
@@ -162,6 +252,7 @@ async function downloadVideo(url: string) {
       : '--:--',
     filename: basename(absolutePath),
   }
+  downloadedVideo.thumbnailFilename = await ensureThumbnail(downloadedVideo, url)
   let savedVideo = downloadedVideo
   await updateLibrary((library) => {
     savedVideo = { ...downloadedVideo, tags: library.find((item) => item.id === downloadedVideo.id)?.tags ?? [] }
@@ -189,7 +280,14 @@ async function downloadOrReuseVideo(url: string): Promise<DownloadResolution> {
   if (activeDownload) return { video: await activeDownload, alreadyExists: true }
 
   const existingVideo = await findStoredVideo(videoId)
-  if (existingVideo) return { video: existingVideo, alreadyExists: true }
+  if (existingVideo) {
+    const thumbnailFilename = await ensureThumbnail(existingVideo)
+    if (thumbnailFilename && thumbnailFilename !== existingVideo.thumbnailFilename) {
+      const library = await updateLibrary((current) => current.map((video) => video.id === videoId ? { ...video, thumbnailFilename } : video))
+      return { video: library.find((video) => video.id === videoId) ?? existingVideo, alreadyExists: true }
+    }
+    return { video: existingVideo, alreadyExists: true }
+  }
 
   const concurrentDownload = inFlightDownloads.get(videoId)
   if (concurrentDownload) return { video: await concurrentDownload, alreadyExists: true }
@@ -215,13 +313,10 @@ function handleApiRequest(request: IncomingMessage, response: ServerResponse, ne
   }
 
   if (pathname === `${apiPrefix}videos` && request.method === 'GET') {
-    void Promise.all([readLibrary(), readTags()])
+    void Promise.all([readLibraryWithThumbnails(), readTags()])
       .then(([videos, tags]) => sendJson(response, 200, {
         tags,
-        videos: videos.map(({ filename, ...video }) => ({
-          ...video,
-          videoUrl: `/apps/jukebox/videos/${encodeURIComponent(filename)}`,
-        })),
+        videos: videos.map(publicVideo),
       }))
       .catch(() => sendJson(response, 500, { error: 'Could not read the jukebox library.' }))
     return
@@ -363,9 +458,8 @@ function handleApiRequest(request: IncomingMessage, response: ServerResponse, ne
       return downloadOrReuseVideo(normalizeYouTubeVideoUrl(parsedUrl))
     })
     .then(({ video, alreadyExists }) => sendJson(response, 200, {
-      ...video,
+      ...publicVideo(video),
       alreadyExists,
-      videoUrl: `/apps/jukebox/videos/${encodeURIComponent(video.filename)}`,
     }))
     .catch((error: unknown) => {
       const message = error instanceof Error ? error.message : 'Video download failed.'
@@ -401,6 +495,7 @@ function handleVideoRequest(request: IncomingMessage, response: ServerResponse, 
   void stat(videoPath).then(({ size }) => {
     const extension = filename.slice(filename.lastIndexOf('.')).toLowerCase()
     const contentType = ({
+      '.jpg': 'image/jpeg',
       '.mp4': 'video/mp4',
       '.m4v': 'video/x-m4v',
       '.webm': 'video/webm',
@@ -455,7 +550,7 @@ export function ytDlpPlugin(): Plugin {
   }
 }
 
-async function updateLibrary(mutate: (library: LibraryVideo[]) => LibraryVideo[]) {
+async function updateLibrary(mutate: (library: Array<LibraryVideo & { tags: string[] }>) => LibraryVideo[]) {
   let updatedLibrary: LibraryVideo[] = []
   const mutation = libraryMutation.then(async () => {
     updatedLibrary = mutate(await readLibrary())
