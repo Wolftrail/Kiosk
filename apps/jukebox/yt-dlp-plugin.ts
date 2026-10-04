@@ -1,9 +1,11 @@
 import { spawn } from 'node:child_process'
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { basename, dirname, relative, resolve, sep } from 'node:path'
+import { copyFile, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path'
+import { tmpdir } from 'node:os'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { createReadStream } from 'node:fs'
+import { randomUUID, timingSafeEqual } from 'node:crypto'
 import type { Plugin } from 'vite'
 
 type LibraryVideo = {
@@ -18,6 +20,15 @@ type LibraryVideo = {
 
 type RequestBody = { url?: unknown; query?: unknown; name?: unknown; videoId?: unknown; tags?: unknown }
 type DownloadResolution = { video: LibraryVideo; alreadyExists: boolean }
+type DownloadJob = {
+  id: string
+  url: string
+  title?: string
+  status: 'queued' | 'downloading' | 'completed' | 'failed'
+  error?: string
+  video?: ReturnType<typeof publicVideo>
+  alreadyExists?: boolean
+}
 
 const apiPrefix = '/apps/jukebox/api/'
 const videoPrefix = '/apps/jukebox/videos/'
@@ -25,15 +36,106 @@ const youtubeHosts = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com',
 const playbackCompatibleFormatSelector = "bv*[height<=1440][vcodec~='^(avc1|h264)']+ba[acodec~='^(mp4a|aac)']/b[height<=1440][ext=mp4]/bv*[height<=1440]+ba/b[height<=1440]"
 const projectRoot = dirname(fileURLToPath(import.meta.url))
 const videoDirectory = resolve(projectRoot, 'public/videos')
+const publicationDirectory = resolve(dirname(videoDirectory), '.jukebox-staging')
 const libraryPath = resolve(projectRoot, 'data/library.json')
 const tagsPath = resolve(projectRoot, 'data/tags.json')
 let libraryMutation = Promise.resolve()
 const inFlightDownloads = new Map<string, Promise<LibraryVideo>>()
 const thumbnailJobs = new Map<string, Promise<string | undefined>>()
+const downloadJobs = new Map<string, DownloadJob>()
+const downloadQueue: string[] = []
+const activeDownloadJobs = new Map<string, string>()
+let processingDownloadQueue = false
+
+async function createTemporaryDirectory(prefix: string) {
+  return mkdtemp(resolve(tmpdir(), `kiosk-jukebox-${prefix}`))
+}
+
+async function publishFile(source: string, destination: string) {
+  try {
+    await rename(source, destination)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error
+    await mkdir(publicationDirectory, { recursive: true })
+    const stagingDirectory = await mkdtemp(resolve(publicationDirectory, 'publish-'))
+    try {
+      const stagedFile = resolve(stagingDirectory, basename(destination))
+      await copyFile(source, stagedFile)
+      await rename(stagedFile, destination)
+    } finally {
+      await rm(stagingDirectory, { recursive: true, force: true }).catch(() => undefined)
+    }
+  }
+}
+
+function pruneFinishedJobs() {
+  const finished = [...downloadJobs.values()].filter((job) => job.status === 'completed' || job.status === 'failed')
+  for (const job of finished.slice(0, Math.max(0, finished.length - 100))) downloadJobs.delete(job.id)
+}
+
+async function processDownloadQueue() {
+  if (processingDownloadQueue) return
+  processingDownloadQueue = true
+  try {
+    while (downloadQueue.length) {
+      const id = downloadQueue.shift()!
+      const job = downloadJobs.get(id)
+      if (!job) continue
+      job.status = 'downloading'
+      try {
+        const result = await downloadOrReuseVideo(job.url)
+        job.video = publicVideo(result.video)
+        job.alreadyExists = result.alreadyExists
+        job.status = 'completed'
+      } catch (error) {
+        job.error = error instanceof Error ? error.message : 'Video download failed.'
+        job.status = 'failed'
+      } finally {
+        const videoId = new URL(job.url).searchParams.get('v')
+        if (videoId && activeDownloadJobs.get(videoId) === id) activeDownloadJobs.delete(videoId)
+        pruneFinishedJobs()
+      }
+    }
+  } finally {
+    processingDownloadQueue = false
+  }
+}
+
+function enqueueDownload(url: string) {
+  const videoId = new URL(url).searchParams.get('v')!
+  const activeId = activeDownloadJobs.get(videoId)
+  if (activeId) return downloadJobs.get(activeId)!
+  if (downloadQueue.length >= 100) throw new Error('The download queue is full. Try again later.')
+  const job: DownloadJob = { id: randomUUID(), url, status: 'queued' }
+  downloadJobs.set(job.id, job)
+  activeDownloadJobs.set(videoId, job.id)
+  downloadQueue.push(job.id)
+  setImmediate(() => void processDownloadQueue())
+  return job
+}
+
+function youtubeDownloaderArguments() {
+  const file = process.env.KIOSK_YTDLP_COOKIES_FILE?.trim()
+  const browser = process.env.KIOSK_YTDLP_COOKIES_BROWSER?.trim()
+  const runtime = ['--js-runtimes', `node:${process.execPath}`]
+  if (file && browser) throw new Error('Configure either KIOSK_YTDLP_COOKIES_FILE or KIOSK_YTDLP_COOKIES_BROWSER, not both.')
+  if (file) return ['--cookies', file, ...runtime]
+  if (browser) return ['--cookies-from-browser', browser, ...runtime]
+  return runtime
+}
+
+function youtubeDownloadError(message: string) {
+  if (/sign in to confirm your age|sign in to confirm you.?re not a bot|login required|use --cookies-from-browser or --cookies|only available for registered users/i.test(message)) {
+    return process.env.KIOSK_YTDLP_COOKIES_FILE?.trim() || process.env.KIOSK_YTDLP_COOKIES_BROWSER?.trim()
+      ? 'YouTube authentication is required. Refresh the configured cookies or sign in to the configured browser profile with an account that can watch this video, then retry.'
+      : 'This video requires YouTube authentication. Configure cookies on the kiosk using KIOSK_YTDLP_COOKIES_FILE or KIOSK_YTDLP_COOKIES_BROWSER, then retry.'
+  }
+  return message
+}
 
 function runThumbnailCommand(command: string, args: string[]) {
   return new Promise<void>((resolvePromise, reject) => {
-    const child = spawn(command, args, { cwd: projectRoot, windowsHide: true, stdio: 'ignore' })
+    const child = spawn(command, command === 'yt-dlp' ? [...youtubeDownloaderArguments(), ...args] : args, { cwd: projectRoot, windowsHide: true, stdio: 'ignore' })
     const timer = setTimeout(() => {
       child.kill()
       reject(new Error(`${command} thumbnail generation timed out.`))
@@ -59,15 +161,17 @@ async function ensureThumbnail(video: LibraryVideo, url?: string): Promise<strin
   if (existingJob) return existingJob
 
   const job = (async () => {
-    const temporaryPath = resolve(videoDirectory, `${video.id}.thumb.pending.jpg`)
+    let stagingDirectory: string | undefined
     try {
+      stagingDirectory = await createTemporaryDirectory('thumbnail-')
+      const temporaryPath = resolve(stagingDirectory, `${video.id}.thumb.pending.jpg`)
       let hasArtwork = false
       if (url) {
         try {
           await runThumbnailCommand('yt-dlp', [
             '--no-playlist', '--no-warnings', '--skip-download', '--write-thumbnail',
             '--convert-thumbnails', 'jpg', '--socket-timeout', '10', '--retries', '0',
-            '--output', `thumbnail:${resolve(videoDirectory, `${video.id}.thumb.pending.%(ext)s`)}`,
+            '--output', `thumbnail:${resolve(stagingDirectory, `${video.id}.thumb.pending.%(ext)s`)}`,
             url,
           ])
           hasArtwork = await stat(temporaryPath).then((details) => details.isFile() && details.size > 0).catch(() => false)
@@ -84,13 +188,13 @@ async function ensureThumbnail(video: LibraryVideo, url?: string): Promise<strin
       }
       const details = await stat(temporaryPath)
       if (!details.isFile() || details.size === 0) throw new Error('Thumbnail is empty.')
-      await rename(temporaryPath, thumbnailPath)
+      await publishFile(temporaryPath, thumbnailPath)
       return filename
     } catch (error) {
       console.warn(`Could not create thumbnail for ${video.id}:`, error)
       return undefined
     } finally {
-      await rm(temporaryPath, { force: true }).catch(() => undefined)
+      if (stagingDirectory) await rm(stagingDirectory, { recursive: true, force: true }).catch(() => undefined)
     }
   })()
   thumbnailJobs.set(video.id, job)
@@ -126,7 +230,7 @@ function sendJson(response: ServerResponse, status: number, data: unknown) {
 
 function runYtDlp(args: string[], maxOutput = 4_000_000) {
   return new Promise<{ stdout: string; stderr: string }>((resolvePromise, reject) => {
-    const child = spawn('yt-dlp', args, { cwd: projectRoot, windowsHide: true })
+    const child = spawn('yt-dlp', [...youtubeDownloaderArguments(), ...args], { cwd: projectRoot, windowsHide: true })
     let stdout = ''
     let stderr = ''
     child.stdout.setEncoding('utf8')
@@ -142,7 +246,7 @@ function runYtDlp(args: string[], maxOutput = 4_000_000) {
     child.on('error', reject)
     child.on('close', (code) => {
       if (code === 0) resolvePromise({ stdout, stderr })
-      else reject(new Error(stderr.trim() || `yt-dlp exited with code ${code ?? 'unknown'}.`))
+      else reject(new Error(youtubeDownloadError(stderr.trim() || `yt-dlp exited with code ${code ?? 'unknown'}.`)))
     })
   })
 }
@@ -218,29 +322,131 @@ function normalizeYouTubeVideoUrl(url: URL) {
   return `https://www.youtube.com/watch?v=${videoId}`
 }
 
+function validateYouTubeUrl(value: unknown) {
+  if (typeof value !== 'string') throw new Error('Provide a YouTube video URL.')
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(value)
+  } catch {
+    throw new Error('Enter a valid YouTube URL.')
+  }
+  if (parsedUrl.protocol !== 'https:' || parsedUrl.port || parsedUrl.username || parsedUrl.password || !youtubeHosts.has(parsedUrl.hostname.toLowerCase())) {
+    throw new Error('Only HTTPS YouTube video URLs are supported.')
+  }
+  return normalizeYouTubeVideoUrl(parsedUrl)
+}
+
+function isLoopbackAddress(address: string | undefined) {
+  return address === '::1' || address === '127.0.0.1' || address?.startsWith('127.') || address?.startsWith('::ffff:127.')
+}
+
+function hasValidCredentials(request: IncomingMessage) {
+  const password = process.env.KIOSK_ADMIN_PASSWORD
+  if (!password) return isLoopbackAddress(request.socket.remoteAddress)
+  const username = process.env.KIOSK_ADMIN_USERNAME || 'admin'
+  const authorization = request.headers.authorization
+  if (!authorization?.startsWith('Basic ')) return false
+  let supplied: string
+  try {
+    supplied = Buffer.from(authorization.slice(6), 'base64').toString('utf8')
+  } catch {
+    return false
+  }
+  const separator = supplied.indexOf(':')
+  if (separator < 0) return false
+  const actual = Buffer.from(`${supplied.slice(0, separator)}:${supplied.slice(separator + 1)}`)
+  const expected = Buffer.from(`${username}:${password}`)
+  return actual.length === expected.length && timingSafeEqual(actual, expected)
+}
+
+export function protectManagementAccess(request: IncomingMessage, response: ServerResponse, next: () => void, managementPage = false) {
+  if (!managementPage && !request.url?.startsWith(apiPrefix)) {
+    next()
+    return
+  }
+  const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+  if (!managementPage && pathname === `${apiPrefix}videos` && request.method === 'GET') {
+    next()
+    return
+  }
+  if (!hasValidCredentials(request)) {
+    if (process.env.KIOSK_ADMIN_PASSWORD) {
+      response.writeHead(401, { 'content-type': 'application/json; charset=utf-8', 'www-authenticate': 'Basic realm="Kiosk management", charset="UTF-8"' })
+      response.end(JSON.stringify({ error: 'Management authentication required.' }))
+    } else {
+      sendJson(response, 403, { error: 'Management is restricted to this device until KIOSK_ADMIN_PASSWORD is configured.' })
+    }
+    return
+  }
+
+  const method = request.method ?? 'GET'
+  const protectedRead = pathname === `${apiPrefix}downloads` && method === 'GET'
+  const mutation = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE'
+  if (!managementPage && !protectedRead && !mutation) {
+    next()
+    return
+  }
+  if (mutation) {
+    const fetchSite = request.headers['sec-fetch-site']
+    if (fetchSite === 'cross-site') {
+      sendJson(response, 403, { error: 'Cross-site management requests are not allowed.' })
+      return
+    }
+    const origin = request.headers.origin
+    const forwardedHost = request.headers['x-forwarded-host']
+    const expectedHost = (Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost)?.split(',')[0]?.trim() || request.headers.host
+    if (origin && expectedHost) {
+      try {
+        if (new URL(origin).host.toLowerCase() !== expectedHost.toLowerCase()) {
+          sendJson(response, 403, { error: 'Cross-origin management requests are not allowed.' })
+          return
+        }
+      } catch {
+        sendJson(response, 403, { error: 'Invalid request origin.' })
+        return
+      }
+    }
+  }
+  next()
+}
+
 async function downloadVideo(url: string) {
   await assertFfmpegAvailable()
   const metadataResult = await runYtDlp(['--dump-single-json', '--skip-download', '--no-warnings', '--no-playlist', url])
   const metadata = JSON.parse(metadataResult.stdout) as { id?: string; title?: string; uploader?: string; channel?: string; duration?: number }
   if (!metadata.id || !metadata.title) throw new Error('yt-dlp did not return video details.')
+  const jobId = activeDownloadJobs.get(new URL(url).searchParams.get('v')!)
+  const job = jobId ? downloadJobs.get(jobId) : undefined
+  if (job) job.title = metadata.title
 
   await mkdir(videoDirectory, { recursive: true })
-  const downloadResult = await runYtDlp([
-    '--no-playlist',
-    '--no-warnings',
-    '--no-progress',
-    '--format', playbackCompatibleFormatSelector,
-    '--output', resolve(videoDirectory, '%(id)s.%(ext)s'),
-    '--print', 'after_move:filepath',
-    url,
-  ])
-  const downloadedPath = downloadResult.stdout.trim().split(/\r?\n/).at(-1)
-  if (!downloadedPath) throw new Error('yt-dlp completed without returning a video file.')
+  const stagingDirectory = await createTemporaryDirectory('download-')
+  let filename: string
+  try {
+    const downloadResult = await runYtDlp([
+      '--no-playlist',
+      '--no-warnings',
+      '--no-progress',
+      '--format', playbackCompatibleFormatSelector,
+      '--paths', `temp:${stagingDirectory}`,
+      '--output', resolve(stagingDirectory, '%(id)s.%(ext)s'),
+      '--print', 'after_move:filepath',
+      url,
+    ])
+    const downloadedPath = downloadResult.stdout.trim().split(/\r?\n/).at(-1)
+    if (!downloadedPath) throw new Error('yt-dlp completed without returning a video file.')
 
-  const absolutePath = resolve(downloadedPath)
-  const pathFromVideoDirectory = relative(videoDirectory, absolutePath)
-  if (!pathFromVideoDirectory || pathFromVideoDirectory.startsWith(`..${sep}`) || pathFromVideoDirectory === '..') {
-    throw new Error('yt-dlp returned a path outside the jukebox video directory.')
+    const absolutePath = resolve(downloadedPath)
+    const pathFromStagingDirectory = relative(stagingDirectory, absolutePath)
+    if (!pathFromStagingDirectory || isAbsolute(pathFromStagingDirectory) || pathFromStagingDirectory.startsWith(`..${sep}`) || pathFromStagingDirectory === '..') {
+      throw new Error('yt-dlp returned a path outside the temporary download directory.')
+    }
+    const details = await stat(absolutePath)
+    if (!details.isFile() || details.size === 0) throw new Error('Downloaded video is empty or not a file.')
+    filename = basename(absolutePath)
+    await publishFile(absolutePath, resolve(videoDirectory, filename))
+  } finally {
+    await rm(stagingDirectory, { recursive: true, force: true }).catch(() => undefined)
   }
 
   const downloadedVideo: LibraryVideo = {
@@ -250,7 +456,7 @@ async function downloadVideo(url: string) {
     duration: typeof metadata.duration === 'number'
       ? `${Math.floor(metadata.duration / 60)}:${String(Math.floor(metadata.duration % 60)).padStart(2, '0')}`
       : '--:--',
-    filename: basename(absolutePath),
+    filename,
   }
   downloadedVideo.thumbnailFilename = await ensureThumbnail(downloadedVideo, url)
   let savedVideo = downloadedVideo
@@ -301,8 +507,13 @@ async function downloadOrReuseVideo(url: string): Promise<DownloadResolution> {
   }
 }
 
-function handleApiRequest(request: IncomingMessage, response: ServerResponse, next: () => void) {
+export function handleApiRequest(request: IncomingMessage, response: ServerResponse, next: () => void) {
   const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+  if (pathname.startsWith(apiPrefix)) {
+    let forwarded = false
+    protectManagementAccess(request, response, () => { forwarded = true })
+    if (!forwarded) return
+  }
   if (pathname.startsWith(videoPrefix)) {
     handleVideoRequest(request, response, pathname, next)
     return
@@ -319,6 +530,34 @@ function handleApiRequest(request: IncomingMessage, response: ServerResponse, ne
         videos: videos.map(publicVideo),
       }))
       .catch(() => sendJson(response, 500, { error: 'Could not read the jukebox library.' }))
+    return
+  }
+
+  if (pathname === `${apiPrefix}downloads` && request.method === 'GET') {
+    sendJson(response, 200, { jobs: [...downloadJobs.values()].map((job) => ({ ...job })) })
+    return
+  }
+
+  if (pathname === `${apiPrefix}downloads/failed` && request.method === 'DELETE') {
+    let cleared = 0
+    for (const [id, job] of downloadJobs) {
+      if (job.status !== 'failed') continue
+      downloadJobs.delete(id)
+      cleared += 1
+    }
+    sendJson(response, 200, { cleared })
+    return
+  }
+
+  if (pathname === `${apiPrefix}downloads` && request.method === 'POST') {
+    void readRequestBody(request)
+      .then(({ url }) => enqueueDownload(validateYouTubeUrl(url)))
+      .then((job) => sendJson(response, 202, { job: { ...job } }))
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Could not queue video download.'
+        const invalidUrl = message.startsWith('Only HTTPS') || message.startsWith('Enter a valid') || message.startsWith('YouTube URL must') || message.startsWith('Provide')
+        sendJson(response, message.includes('too large') ? 413 : invalidUrl ? 400 : message.includes('queue is full') ? 429 : 500, { error: message })
+      })
     return
   }
 
@@ -400,63 +639,13 @@ function handleApiRequest(request: IncomingMessage, response: ServerResponse, ne
     return
   }
 
-  if (pathname === `${apiPrefix}search` && request.method === 'POST') {
-    void readRequestBody(request)
-      .then(async ({ query }) => {
-        if (typeof query !== 'string' || !query.trim()) throw new Error('Enter a search query.')
-        const normalizedQuery = query.trim()
-        if (normalizedQuery.length > 200) throw new Error('Search queries must be 200 characters or fewer.')
-        const searchResult = await runYtDlp([
-          '--dump-single-json',
-          '--skip-download',
-          '--no-warnings',
-          '--flat-playlist',
-          `ytsearch10:${normalizedQuery}`,
-        ])
-        const searchData = JSON.parse(searchResult.stdout) as {
-          entries?: Array<{ id?: string; title?: string; uploader?: string; channel?: string; duration?: number }>
-        }
-        const results = (searchData.entries ?? [])
-          .filter((entry): entry is typeof entry & { id: string; title: string } => Boolean(entry.id && entry.title))
-          .map((entry) => ({
-            id: entry.id,
-            title: entry.title,
-            artist: entry.uploader || entry.channel || 'YouTube',
-            duration: typeof entry.duration === 'number'
-              ? `${Math.floor(entry.duration / 60)}:${String(Math.floor(entry.duration % 60)).padStart(2, '0')}`
-              : '--:--',
-            url: `https://www.youtube.com/watch?v=${entry.id}`,
-          }))
-        return { results }
-      })
-      .then((result) => sendJson(response, 200, result))
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : 'YouTube search failed.'
-        const invalidQuery = message.startsWith('Enter a search query.') || message.startsWith('Search queries must')
-        sendJson(response, invalidQuery ? 400 : 500, { error: message })
-      })
-    return
-  }
-
   if (pathname !== `${apiPrefix}download` || request.method !== 'POST') {
     sendJson(response, 404, { error: 'Jukebox API route not found.' })
     return
   }
 
   void readRequestBody(request)
-    .then(async ({ url }) => {
-      if (typeof url !== 'string') throw new Error('Provide a YouTube video URL.')
-      let parsedUrl: URL
-      try {
-        parsedUrl = new URL(url)
-      } catch {
-        throw new Error('Enter a valid YouTube URL.')
-      }
-      if (parsedUrl.protocol !== 'https:' || parsedUrl.port || parsedUrl.username || parsedUrl.password || !youtubeHosts.has(parsedUrl.hostname.toLowerCase())) {
-        throw new Error('Only HTTPS YouTube video URLs are supported.')
-      }
-      return downloadOrReuseVideo(normalizeYouTubeVideoUrl(parsedUrl))
-    })
+    .then(({ url }) => downloadOrReuseVideo(validateYouTubeUrl(url)))
     .then(({ video, alreadyExists }) => sendJson(response, 200, {
       ...publicVideo(video),
       alreadyExists,

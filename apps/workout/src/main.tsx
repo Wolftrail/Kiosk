@@ -1,10 +1,13 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { ToastProvider } from '@kiosk/remote-ui'
 import App from './App'
 import '@kiosk/remote-ui/styles.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ToastProvider>
+      <App />
+    </ToastProvider>
   </StrictMode>,
 )

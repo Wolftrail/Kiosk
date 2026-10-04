@@ -1,3 +1,70 @@
+.remote-toast-region {
+  position: fixed;
+  z-index: 10000;
+  inset-block-start: max(24px, env(safe-area-inset-top));
+  inset-inline-end: max(24px, env(safe-area-inset-right));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(460px, calc(100% - 48px));
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  pointer-events: none;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+.remote-toast {
+  --toast-accent: #246b91;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #cbd3d8;
+  border-inline-start: 5px solid var(--toast-accent);
+  border-radius: 6px;
+  color: #202c32;
+  background: #fff;
+  box-shadow: 0 6px 24px #0003;
+  pointer-events: auto;
+}
+
+.remote-toast[data-variant='success'] { --toast-accent: #287543; }
+.remote-toast[data-variant='error'] { --toast-accent: #b52b35; }
+.remote-toast[data-variant='warning'] { --toast-accent: #966300; }
+
+.remote-toast__icon {
+  flex: 0 0 auto;
+  margin-top: 6px;
+  color: var(--toast-accent);
+}
+
+.remote-toast__message {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding-block: 5px;
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.remote-toast__dismiss {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #53636d;
+  background: transparent;
+  cursor: pointer;
+}
+
+.remote-toast__dismiss:hover { background: #edf1f3; }
+.remote-toast__dismiss:focus-visible { outline: 3px solid var(--toast-accent); outline-offset: 2px; }
+
 html,
 body,
 #root {
@@ -240,31 +307,49 @@ body,
 
 .remote-onscreen-keyboard {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
+  min-width: 0;
 }
 
 .remote-onscreen-keyboard__row {
-  display: flex;
-  justify-content: center;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: repeat(13, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .remote-onscreen-keyboard__key {
   display: grid;
   min-width: 0;
-  min-height: 42px;
-  flex: 1 1 0;
+  height: 60px;
   place-items: center;
-  padding: 0 5px;
+  padding: 0;
   border: 1px solid rgba(32, 59, 53, 0.16);
   border-radius: 4px;
   color: var(--remote-ink);
   background: rgba(255, 255, 255, 0.72);
   font: inherit;
-  font-size: 13px;
+  font-size: 22px;
   font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
   cursor: pointer;
+}
+
+.remote-onscreen-keyboard__key[lang='th'] {
+  font-family: 'Leelawadee UI', Tahoma, sans-serif;
+  font-size: 26px;
+}
+
+.remote-onscreen-keyboard__key:not(:disabled):hover {
+  background: #dfe8e3;
+}
+
+.remote-onscreen-keyboard__key:focus-visible {
+  outline: 4px solid var(--remote-accent);
+  outline-offset: 1px;
+  color: white;
+  background: var(--remote-ink);
 }
 
 .remote-onscreen-keyboard__key:disabled {
@@ -273,12 +358,44 @@ body,
 }
 
 .remote-onscreen-keyboard__key--action {
-  flex: 1.5 1 0;
+  grid-column: span 2;
   color: var(--remote-accent);
 }
 
-.remote-onscreen-keyboard__row--actions .remote-onscreen-keyboard__key--space {
-  flex: 5 1 0;
+.remote-onscreen-keyboard__key--action[aria-pressed='true'] {
+  color: white;
+  background: var(--remote-ink);
+}
+
+.remote-onscreen-keyboard__key--language {
+  display: flex;
+  grid-column: span 2;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.remote-onscreen-keyboard__key--space {
+  grid-column: span 3;
+}
+
+.remote-onscreen-keyboard__row--actions[data-has-submit='false'] .remote-onscreen-keyboard__key--space {
+  grid-column: span 5;
+}
+
+.remote-onscreen-keyboard__key--clear {
+  grid-column: span 2;
+}
+
+.remote-onscreen-keyboard__key--submit {
+  grid-column: span 2;
+  color: white;
+  background: var(--remote-accent);
+}
+
+.remote-onscreen-keyboard__key--submit:not(:disabled):hover {
+  color: var(--remote-ink);
 }
 
 @keyframes remote-app-settle-in {

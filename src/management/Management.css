@@ -1,0 +1,78 @@
+.management { --manage-ink: #243b36; --manage-accent: #176b60; min-height: 100dvh; color: var(--manage-ink); background: #f4f6f5; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; letter-spacing: 0; }
+.management__header { display: flex; align-items: center; gap: 20px; padding: 18px 28px; border-bottom: 1px solid #d8e0dc; background: white; }
+.management__header a { color: var(--manage-accent); }
+.management__brand { font-size: 20px; font-weight: 800; text-decoration: none; }
+.management__header > a:last-child { margin-left: auto; }
+.management main { width: 100%; padding: 20px 28px; }
+.management h1 { margin: 0; font-size: 28px; }
+.management h2 { display: flex; align-items: center; gap: 9px; margin: 0 0 16px; font-size: 18px; }
+.management h3 { margin: 0; font-size: 16px; overflow-wrap: anywhere; }
+.management p { color: #62736b; line-height: 1.5; }
+.management button { display: inline-flex; min-height: 38px; flex-shrink: 0; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; border: 1px solid #bdcdc4; border-radius: 4px; color: var(--manage-ink); background: white; font: inherit; cursor: pointer; }
+.management button:hover { background: #e7eeeb; }
+.management button:disabled { cursor: default; opacity: .5; }
+.management :focus-visible { outline: 3px solid #278c7a; outline-offset: 2px; }
+.management input:not([type='checkbox']) { width: 100%; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid #bdcdc4; border-radius: 4px; background: white; color: var(--manage-ink); font: inherit; }
+.management select { width: 100%; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid #bdcdc4; border-radius: 4px; background: white; color: var(--manage-ink); font: inherit; }
+.management input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--manage-accent); }
+.management form > label { display: block; margin-bottom: 7px; }
+.management__heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.management__heading p { margin: 8px 0 0; }
+.management__input-row { display: flex; gap: 8px; }
+.management__downloads { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .8fr); gap: 28px; padding: 20px 0 24px; border-block: 1px solid #d8e0dc; }
+.management__download-entry,.management__download-manager { min-width: 0; }
+.management__download-manager { padding-left: 24px; border-left: 1px solid #d8e0dc; }
+.management__job-count { color: #62736b; font-size: 13px; font-weight: 400; }
+.management__download-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.management__download-heading h2 { margin: 0; }
+.management .management__jobs-empty { margin: 0; }
+.management__download-manager .management__jobs { max-height: 180px; margin: 0; overflow-y: auto; }
+.management__jobs li > svg { flex-shrink: 0; color: var(--manage-accent); }
+.management__jobs li > span { flex: 1; }
+.management__activity { animation: management-spin 1s linear infinite; }
+@keyframes management-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .management__activity { animation: none; } }
+.management__workspace { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(240px, 1fr) minmax(240px, .8fr); gap: 28px; padding-top: 26px; }
+.management__workspace > section { min-width: 0; }
+.management__assignment,.management__catalog { padding-left: 24px; border-left: 1px solid #d8e0dc; }
+.management__filters { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); flex-shrink: 0; gap: 12px; margin-bottom: 14px; }
+.management__filter { display: grid; min-width: 0; gap: 7px; }
+.management__video-list { display: grid; grid-auto-rows: max-content; align-content: start; max-height: 55dvh; gap: 0; overflow-y: auto; }
+.management button.management__video { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 12px; padding: 12px 6px; border: 0; border-bottom: 1px solid #d8e0dc; border-radius: 0; text-align: left; background: transparent; }
+.management button.management__video.is-selected { background: #dcebe5; box-shadow: inset 3px 0 var(--manage-accent); }
+.management__video img { width: 96px; height: 54px; object-fit: cover; }
+.management__video span { overflow-wrap: anywhere; font-weight: 700; }
+.management small { display: block; margin-top: 5px; color: #62736b; font-size: 12px; font-weight: 400; }
+.management small.management__video-tags { display: flex; align-items: flex-start; gap: 5px; color: var(--manage-accent); }
+.management__video-tags > svg { flex-shrink: 0; margin-top: 1px; }
+.management__checks { display: grid; grid-auto-rows: max-content; align-content: start; max-height: 40dvh; gap: 12px; margin-top: 20px; overflow-y: auto; }
+.management__checks label { display: flex; align-items: center; gap: 9px; overflow-wrap: anywhere; }
+.management__catalog ul,.management__jobs { margin: 16px 0 0; padding: 0; list-style: none; }
+.management__catalog ul { max-height: 40dvh; overflow-y: auto; }
+.management__video-list,.management__checks,.management__catalog ul,.management__jobs { overscroll-behavior-y: contain; scrollbar-gutter: stable; }
+.management__catalog li,.management__jobs li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #d8e0dc; }
+.management__catalog li > span,.management__jobs li > span { min-width: 0; overflow-wrap: anywhere; }
+.management .management__notice { padding: 12px; color: #843c23; background: #fff0dc; }
+.management__backdrop { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; background: #14231db3; }
+.management__backdrop section { width: min(460px, 100%); padding: 24px; border-radius: 6px; background: white; }
+.management__dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.management .is-destructive { color: white; border-color: #ac443a; background: #ac443a; }
+@media (min-width: 1001px) and (min-height: 600px) {
+	.management { display: flex; flex-direction: column; height: 100dvh; min-height: 0; overflow: hidden; }
+	.management__header { flex-shrink: 0; }
+	.management main { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+	.management__heading,.management__notice { flex-shrink: 0; }
+	.management__downloads { flex-shrink: 0; max-height: min(240px, 30dvh); gap: 24px; padding: 16px 0; overflow: hidden; }
+	.management__download-entry { overflow-y: auto; }
+	.management__download-manager { display: flex; flex-direction: column; min-height: 0; }
+	.management__download-heading { flex-shrink: 0; margin-bottom: 12px; }
+	.management__download-manager .management__jobs { min-height: 0; }
+	.management__workspace { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); gap: 24px; padding-top: 20px; }
+	.management__workspace > section { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+	.management__workspace h2,.management__workspace form,.management__filter,.management__assignment > p { flex-shrink: 0; }
+	.management__assignment h3 { flex-shrink: 0; max-height: 20%; overflow-y: auto; }
+	.management__video-list,.management__checks,.management__catalog ul { flex: 1; min-height: 0; max-height: none; }
+}
+@media (max-width: 1000px) { .management__workspace { grid-template-columns: minmax(0, 1.4fr) minmax(220px, 1fr); } .management__catalog { grid-column: 1 / -1; padding: 20px 0 0; border-left: 0; border-top: 1px solid #d8e0dc; } }
+@media (max-width: 600px) { .management main { padding: 20px 16px; } .management__header { padding: 16px; gap: 12px; } .management__workspace { grid-template-columns: minmax(0, 1fr); } .management__assignment { padding: 20px 0 0; border-left: 0; border-top: 1px solid #d8e0dc; } .management__input-row { flex-wrap: wrap; } .management__input-row input { flex: 1 1 180px; } }
+@media (max-width: 800px) { .management__downloads { grid-template-columns: minmax(0, 1fr); gap: 20px; } .management__download-manager { padding: 20px 0 0; border-left: 0; border-top: 1px solid #d8e0dc; } }

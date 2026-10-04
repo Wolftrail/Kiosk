@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/keyboardLayouts.test.ts"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./styles.css": "./src/styles.css"
@@ -10,6 +13,9 @@
   "peerDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "lucide-react": "^1.51.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

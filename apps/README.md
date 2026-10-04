@@ -15,3 +15,7 @@ Each app builds into the root `dist/apps/<name>/` directory with its base path s
 The jukebox requires `yt-dlp` and `ffmpeg` on PATH for downloads. New downloads save YouTube artwork as a local JPEG alongside the video in `apps/jukebox/public/videos/`, using `<video-id>.thumb.jpg`. If artwork cannot be saved, FFmpeg extracts a representative frame instead. Thumbnail failures do not prevent a video from being added to the library.
 
 When the library is loaded, existing videos without thumbnails are backfilled from their local video files without accessing YouTube. The thumbnail filename is saved in `apps/jukebox/data/library.json`; the API supplies a local `thumbnailUrl` for library artwork and player posters. Failed thumbnail attempts are retried after restarting the jukebox server.
+
+## Jukebox Tags
+
+The root kiosk management page at `/manage` separates video tag assignment from tag catalog management. Select a video and use its tag checkboxes to assign existing tags. The catalog has physical-keyboard tag creation, usage counts, and confirmed deletion. Creating a tag never assigns it to the selected video. Confirmed deletion removes the tag from the catalog and all video assignments; videos themselves are retained. The TV jukebox uses a read-only library refresh and contains only playback and tag filters.

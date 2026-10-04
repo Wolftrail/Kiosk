@@ -23,4 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 /apps/jukebox/public/videos
+/apps/jukebox/public/.jukebox-staging
 /apps/jukebox/data

@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import { RemoteButton, RemoteLink, RemoteNavigationProvider } from '@kiosk/remote-ui'
 import { appCatalog, type KioskApp } from './apps/registry'
 import './App.css'
+import Management from './management/Management'
 
 const today = new Intl.DateTimeFormat('en', {
   weekday: 'long', month: 'long', day: 'numeric',
@@ -50,7 +51,7 @@ function AppTile({ app, onSetup }: { app: KioskApp; onSetup: (app: KioskApp) => 
   )
 }
 
-function App() {
+function Home() {
   const [selectedApp, setSelectedApp] = useState<KioskApp | null>(null)
   const [clock, setClock] = useState(initialClock)
   const previousFocus = useRef<HTMLElement | null>(null)
@@ -136,4 +137,6 @@ function renderIcon(Icon: LucideIcon) {
   return <Icon size={48} strokeWidth={1.6} />
 }
 
-export default App
+export default function App() {
+  return /^\/manage\/?$/.test(window.location.pathname) ? <Management /> : <Home />
+}

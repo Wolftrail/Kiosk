@@ -14,6 +14,7 @@
     "build:kiosk": "tsc -b && vite build",
     "build:apps": "npm run build --workspaces --if-present",
     "lint": "oxlint",
+    "start": "node --experimental-strip-types server.ts",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {

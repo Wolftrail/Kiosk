@@ -17,19 +17,94 @@ Open `http://localhost:5173/`. The kiosk proxies `/apps/jukebox/`, `/apps/workou
 
 `npm run build` builds the kiosk and all three apps into one `dist/` tree. `npm run lint` runs Oxlint across the workspace.
 
+## Management And Production
+
+The TV jukebox provides playback and tag filters only. Open `/manage` on the root kiosk server from a laptop or phone to queue YouTube links, view download status, create or delete tags, and assign tags to videos. There is no YouTube search. The shared on-screen keyboard remains available but is unused.
+
+For production, use Node.js 22.18 or newer:
+
+```sh
+npm run build
+npm start
+```
+
+Open `http://localhost:8080/` for the kiosk or `http://localhost:8080/manage` for management. `KIOSK_PORT` overrides the port. The server listens on all network interfaces and serves the built apps and live library API on one origin.
+
+Without `KIOSK_ADMIN_PASSWORD`, management is available only from the server machine. To allow local-network management, set that environment variable before starting the server (or `npm run dev:all`). The browser prompts for HTTP Basic authentication; the username defaults to `admin` and can be changed with `KIOSK_ADMIN_USERNAME`. Enter credentials directly in the browser, never in a URL. From another device, open `http://<kiosk-lan-ip>:8080/manage` (port 5173 during development). Allow the chosen port through the host firewall only for your trusted local network. HTTP Basic authentication is not encrypted over HTTP; use a TLS reverse proxy on networks where traffic cannot be trusted. Do not expose the server to the internet.
+
+Downloads run serially on the kiosk and continue when the management page closes. Job state is in memory and does not survive a server restart; downloaded files and tags do. The management page polls every three seconds; the TV refreshes its library every five seconds without interrupting its playing video. Completed downloads disappear from the manager. Failed downloads can be retried or removed with **Clear failed**, which only removes failed job records and does not delete videos or cancel queued or active downloads.
+
 ## Jukebox downloader requirements
 
-The Jukebox downloader requires the Jukebox Vite server to be running. Install both tools below on the machine running that server, and make them callable from `PATH` before starting `npm run dev:all`:
+The Jukebox downloader runs in the production server or the Jukebox Vite server during development. Install both tools below on the kiosk machine, and make them callable from `PATH` before starting the server:
 
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp), invoked as `yt-dlp`.
 - [FFmpeg](https://github.com/BtbN/FFmpeg-Builds/releases), invoked as `ffmpeg`, to merge separate video and audio streams, which is typical for higher resolutions. Download a build matching the server OS and architecture (for example, Linux x86_64 for most Mint PCs or Windows x86_64), then make its `ffmpeg` executable available on `PATH`.
 
+Kiosk explicitly enables its running Node.js executable as yt-dlp's JavaScript runtime for YouTube challenge solving. Use Node.js 22.18 or newer and a current yt-dlp version. Official bundled yt-dlp executables include the EJS challenge scripts; Python installations should install or update `yt-dlp[default]`. Other installation methods may require additional EJS setup. See the [yt-dlp EJS guide](https://github.com/yt-dlp/yt-dlp/wiki/EJS). Missing runtime or solver support can cause signature warnings, missing formats, and access failures even with valid cookies.
+
 A static build by itself cannot launch the downloader. Downloads are saved locally under `apps/jukebox/public/videos/` and listed in `apps/jukebox/data/library.json`.
+
+Video downloads, merge intermediates, and thumbnail conversion files are staged in unique `kiosk-jukebox-*` directories under the system temporary directory, resolved by Node.js `os.tmpdir()` on Windows, macOS, and Linux. Only completed, nonempty files are published to `public/videos/`. If temp and videos are on different filesystems, completed files are copied to a short-lived staging directory under `apps/jukebox/public/.jukebox-staging/`, then renamed into place. Staging directories are removed after success or failure. A forced termination or power loss may leave staging files, but not partial downloads in the video directory. Automatic system temp cleanup varies by OS; leftover staging directories can be deleted while the server is stopped.
 
 Downloads default to H.264/AAC for broad Linux playback compatibility, preferring the best match up to 1440p. If that codec pair is unavailable, the selector falls back to a pre-merged MP4 and then the best available format up to 1440p; actual resolution and codec depend on the source video.
 YouTube URLs are normalized to a watch URL containing only the video ID (`?v=...`), dropping playlist, tracking, timestamp, and fragment parameters.
 
 On a TV, use the remote's arrow keys to move focus, Enter to activate a control, and Escape or Back to close an app setup dialog.
+
+### Optional YouTube authentication
+
+Public videos normally need no authentication. Videos that require a YouTube login need cookies from an account eligible to watch them. Kiosk management login does not authenticate YouTube. Set exactly one of these environment variables on the kiosk before starting or restarting `npm start` or `npm run dev:all`:
+
+- `KIOSK_YTDLP_COOKIES_FILE`: absolute path to a private Netscape-format cookie file exported from a working YouTube session. This also works when the signed-in browser is on another device.
+- `KIOSK_YTDLP_COOKIES_BROWSER`: yt-dlp browser specification, such as `firefox`, `chrome`, or `firefox:profile-path`. The signed-in browser profile must be on the kiosk and accessible to the OS user running the server. Browser cookie extraction and decryption support varies by platform and browser; a cookie file is an alternative when extraction fails.
+
+PowerShell example using a private cookie file outside the repository:
+
+```powershell
+Remove-Item Env:KIOSK_YTDLP_COOKIES_BROWSER -ErrorAction SilentlyContinue
+$env:KIOSK_YTDLP_COOKIES_FILE = "$env:USERPROFILE\kiosk-private\youtube-cookies.txt"
+npm start
+```
+
+Linux/macOS example using a signed-in Firefox profile on the kiosk:
+
+```sh
+unset KIOSK_YTDLP_COOKIES_FILE
+KIOSK_YTDLP_COOKIES_BROWSER=firefox npm start
+```
+
+#### Browser cookies on Windows and Linux
+
+On Windows, Chrome cookie extraction can fail in two separate steps:
+
+- `Could not copy Chrome cookie database`: the database may be locked by Chrome. Close all Chrome windows and background processes before retrying.
+- `Failed to decrypt with DPAPI`: yt-dlp cannot decrypt the stored cookies. Modern Chrome app-bound encryption can cause this even after Chrome is closed. See [yt-dlp issue #10927](https://github.com/yt-dlp/yt-dlp/issues/10927). Enabling Node challenge solving does not fix local cookie decryption. Use Firefox browser cookies or an exported cookie file instead; do not disable Chrome's cookie security protections as a workaround.
+
+To use a signed-in Firefox profile on Windows, stop the server, then start it from the same PowerShell session as these settings:
+
+```powershell
+Remove-Item Env:KIOSK_YTDLP_COOKIES_FILE -ErrorAction SilentlyContinue
+$env:KIOSK_YTDLP_COOKIES_BROWSER = "firefox"
+npm start
+```
+
+On Linux, including Linux Mint, yt-dlp supports browser-cookie extraction from Firefox, Chrome, and Chromium. The Windows DPAPI/app-bound encryption limitation does not apply. Run Kiosk as the same OS user who owns the signed-in browser profile. Chrome and Chromium extraction may also require access to the unlocked desktop keyring, which a background service or a session without a desktop login may lack. Firefox is a simpler starting point because its cookie extraction does not depend on Chrome's desktop-keyring setup.
+
+To use a signed-in Chrome profile on Linux:
+
+```sh
+unset KIOSK_YTDLP_COOKIES_FILE
+KIOSK_YTDLP_COOKIES_BROWSER=chrome npm start
+```
+
+Use `chromium` instead of `chrome` for Chromium. Browser support depends on the installed yt-dlp version, profile location, permissions, and keyring availability; it is not a guarantee that every installation will work. Linux browser-cookie extraction has not yet been verified on the target Mint installation. An exported cookie file remains an alternative when extraction fails.
+
+All examples also apply to development by replacing `npm start` with `npm run dev:all`. Environment changes affect newly started processes only: restart the server after switching methods and set only one cookie variable.
+
+Cookies are applied to metadata, video, and thumbnail requests. They are sensitive account credentials: never paste them into chat, commit them, or store them in the repository or any publicly served directory. Restrict cookie-file access to the server user. No cookie upload or YouTube password input is provided in management. Cookies can expire; refresh the file or sign in to the configured browser profile again, then retry. Authentication cannot grant access the account itself lacks.
+
+See yt-dlp's [cookie FAQ](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp) and [YouTube cookie export guidance](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies) for export instructions and security considerations.
 
 ## Shared remote controls
 
