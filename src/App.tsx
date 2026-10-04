@@ -3,7 +3,7 @@ import { ArrowUpRight, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { RemoteButton, RemoteLink, RemoteNavigationProvider } from '@kiosk/remote-ui'
 import { appCatalog, type KioskApp } from './apps/registry'
-import './App.css'
+import './Home.css'
 import Management from './management/Management'
 
 const today = new Intl.DateTimeFormat('en', {
@@ -13,6 +13,12 @@ const formatClock = () => new Intl.DateTimeFormat('en', {
   hour: 'numeric', minute: '2-digit',
 }).format(new Date())
 const initialClock = formatClock()
+const appArtwork: Record<string, string> = {
+  recite: '/images/recite.jpg',
+  jukebox: '/images/jukebox.jpg',
+  workout: '/images/workout.jpg',
+  scripture: '/images/scripture.jpg',
+}
 
 function AppTile({ app, onSetup }: { app: KioskApp; onSetup: (app: KioskApp) => void }) {
   const Icon = app.icon
@@ -23,12 +29,8 @@ function AppTile({ app, onSetup }: { app: KioskApp; onSetup: (app: KioskApp) => 
         <span className="app-tile__status">{app.url ? 'READY' : 'IN SETUP'}</span>
       </span>
       <span className={`app-tile__art app-tile__art--${app.id}`} aria-hidden="true">
-        {app.id === 'workout' ? (
-          <span className="workout-clock"><strong>07</strong><small>MINUTES</small></span>
-        ) : (
-          <span className="app-tile__icon"><Icon size={76} strokeWidth={1.55} /></span>
-        )}
-        {app.id === 'workout' && <Icon className="workout-dumbbell" size={58} strokeWidth={1.5} />}
+        <img className="app-tile__image" src={appArtwork[app.id]} alt="" />
+        <span className="app-tile__icon"><Icon size={76} strokeWidth={1.55} /></span>
       </span>
       <span className="app-tile__bottomline">
         <span className="app-tile__copy">
@@ -88,7 +90,7 @@ function Home() {
       <header className="kiosk-header">
         <RemoteLink className="kiosk-brand" href="#home" aria-label="Kiosk home">
           <span className="kiosk-brand__mark">K</span>
-          <span>KIOSK</span>
+          <span>COMMONROOM<span className="kiosk-brand__subtitle">KIOSK</span></span>
         </RemoteLink>
         <div className="kiosk-datetime">
           <time className="kiosk-time">{clock}</time>
@@ -98,9 +100,8 @@ function Home() {
 
       <main className="kiosk-main" id="home">
         <section className="home-intro" aria-labelledby="home-title">
-          <p className="home-intro__eyebrow"><span /> YOUR HOME SCREEN</p>
-          <h1 id="home-title">What would you like to do?</h1>
-          <p className="home-intro__description">Pick a place to begin.</p>
+          <p className="home-intro__eyebrow">YOUR COMMONROOM</p>
+          <h1 id="home-title">Make yourself at home.</h1>
         </section>
 
         <section className="app-grid" aria-label="Choose an app">
@@ -109,7 +110,7 @@ function Home() {
       </main>
 
       <footer className="kiosk-footer">
-        <span>READY WHEN YOU ARE</span>
+        <span className="kiosk-footer__status"><span aria-hidden="true" />READY WHEN YOU ARE</span>
         <span>{appCatalog.length.toString().padStart(2, '0')} APPS</span>
       </footer>
 
