@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { ConfirmationDialog, RemoteAppShell, RemoteButton } from '@kiosk/remote-ui'
-import { Check, Pause, Play, RotateCcw, Square, Volume2, VolumeX } from 'lucide-react'
+import { Activity, Check, Clock3, Pause, Play, RotateCcw, Square, Timer, Volume2, VolumeX } from 'lucide-react'
 import { exercises, formatTime, getStage, TOTAL_SECONDS } from './routine'
 import './App.css'
 
@@ -121,7 +121,7 @@ function App() {
   useEffect(() => () => { void audioRef.current?.close() }, [])
 
   return (
-    <div className="workout" onClickCapture={(event) => {
+    <div className="workout" data-status={complete ? 'complete' : status} onClickCapture={(event) => {
       const link = (event.target as HTMLElement).closest('a')
       if (active && link) {
         event.preventDefault()
@@ -142,7 +142,7 @@ function App() {
       }}
     >
       <div className="workout-topline">
-        <span>{active ? `${String(stage.exerciseIndex + 1).padStart(2, '0')} / 12` : '12 moves. One session.'}</span>
+        <span className="workout-session-label"><Activity aria-hidden="true" />{complete ? '12 / 12 complete' : active ? `Move ${String(stage.exerciseIndex + 1).padStart(2, '0')} / 12` : '12 moves. One session.'}</span>
         <RemoteButton className="workout-sound" aria-label={sound ? 'Mute workout sounds' : 'Enable workout sounds'} aria-pressed={sound} title={sound ? 'Mute workout sounds' : 'Enable workout sounds'} onClick={() => {
           if (!sound) {
             audioRef.current ??= new AudioContext()
@@ -161,12 +161,12 @@ function App() {
               <p className="workout-eyebrow">A LITTLE TIME FOR YOURSELF</p>
               <h2><span>Move.</span><span>Breathe.</span><span>Reset.</span></h2>
               <p className="workout-lead">A full-body break, at your own pace.</p>
-              <div className="workout-facts"><span><strong>7:00</strong> total</span><span><strong>30s</strong> per move</span><span><strong>5s</strong> transitions</span></div>
+              <div className="workout-facts"><span><Clock3 aria-hidden="true" /><strong>7:00</strong> total</span><span><Activity aria-hidden="true" /><strong>30s</strong> per move</span><span><Timer aria-hidden="true" /><strong>5s</strong> transitions</span></div>
               <RemoteButton ref={primaryRef} className="workout-button workout-primary" onClick={start}><Play fill="currentColor" /> Start workout</RemoteButton>
               <p className="workout-safety">Have a mat, a wall, and a low, stable step or secured bench nearby. Take longer breaks whenever you need. Stop if you feel pain or dizziness.</p>
             </div>
             <div className="workout-preview">
-              <img src={imageUrl('jumping_jacks')} alt="Two positions of a jumping jack" />
+              <div className="workout-artwork"><img src={imageUrl('jumping_jacks')} alt="Two positions of a jumping jack" /><span className="workout-artwork-caption">01 / Jumping jacks</span></div>
               <ol className="workout-routine">{exercises.map((item, index) => <li key={item.id}><span>{String(index + 1).padStart(2, '0')}</span>{item.name}</li>)}</ol>
             </div>
           </div>
@@ -193,11 +193,13 @@ function App() {
               <p className="workout-easier"><span>Gentler option</span> {exercise.easier}</p>
             </div>
             <div className="workout-timing">
+              <div className="workout-timer-dial" style={{ '--interval-progress': `${100 * (stage.duration - stage.remaining) / stage.duration}%` } as CSSProperties}>
+              <progress className="workout-stage-progress" max={stage.duration} value={stage.duration - stage.remaining} aria-label="Current interval progress" />
               <div className="workout-countdown" role="timer" aria-label={`${stage.remaining} seconds remaining`}>
                 <span>{String(stage.remaining).padStart(2, '0')}</span>
                 <span className="workout-seconds">seconds</span>
               </div>
-              <progress className="workout-stage-progress" max={stage.duration} value={stage.duration - stage.remaining} aria-label="Current interval progress" />
+              </div>
               <p className="workout-remaining">{formatTime(TOTAL_SECONDS - elapsed)} <span>left in session</span></p>
               <div className="workout-actions">
                 <RemoteButton ref={primaryRef} className="workout-button workout-primary" onClick={status === 'running' ? pause : start}>{status === 'running' ? <Pause /> : <Play fill="currentColor" />}{status === 'running' ? 'Pause' : 'Resume'}</RemoteButton>
@@ -206,7 +208,7 @@ function App() {
               <div className="workout-next"><span>{stage.kind === 'exercise' ? 'UP NEXT' : 'STARTING NEXT'}</span><strong>{stage.kind !== 'exercise' ? exercise.name : exercises[stage.exerciseIndex + 1]?.name ?? 'Finish & cool down'}</strong></div>
             </div>
           </div>
-          <div className="workout-progress" aria-label={`Exercise ${stage.exerciseIndex + 1} of 12`}>{exercises.map((item, index) => <span key={item.id} className={index < stage.exerciseIndex ? 'is-done' : index === stage.exerciseIndex ? 'is-current' : ''} />)}</div>
+          <div className="workout-progress" aria-label={`Exercise ${stage.exerciseIndex + 1} of 12`}>{exercises.map((item, index) => <span key={item.id} className={index < stage.exerciseIndex ? 'is-done' : index === stage.exerciseIndex ? 'is-current' : ''} aria-current={index === stage.exerciseIndex ? 'step' : undefined}>{index < stage.exerciseIndex ? <Check aria-hidden="true" /> : String(index + 1).padStart(2, '0')}</span>)}</div>
         </>
       )}
       </div>
