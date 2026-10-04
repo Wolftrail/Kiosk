@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { Pause, Play, Radio, SkipBack, SkipForward, SlidersHorizontal, Tags, X } from 'lucide-react'
 import { RemoteAppShell, RemoteButton } from '@kiosk/remote-ui'
+import { jukeboxSessionKey, parseSession, restoreQueue, type TagFilterMode } from './session'
 import './App.css'
 
 type Track = {
@@ -26,8 +27,6 @@ type LibraryVideo = {
 
 type LibraryResponse = { videos: LibraryVideo[]; tags?: string[] }
 
-type TagFilterMode = 'include' | 'exclude'
-
 function shuffleTracks(trackIds: string[]) {
   const shuffled = [...trackIds]
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
@@ -38,21 +37,34 @@ function shuffleTracks(trackIds: string[]) {
 }
 
 function App() {
+  const [savedSession] = useState(() => {
+    try {
+      return parseSession(window.sessionStorage.getItem(jukeboxSessionKey))
+    } catch {
+      return parseSession(null)
+    }
+  })
   const [tracks, setTracks] = useState<Track[]>([])
-  const [selectedTrackId, setSelectedTrackId] = useState('')
+  const [hasLoadedLibrary, setHasLoadedLibrary] = useState(false)
+  const [selectedTrackId, setSelectedTrackId] = useState(savedSession.selectedTrackId)
   const [playingTrack, setPlayingTrack] = useState<Track>()
   const [tags, setTags] = useState<string[]>([])
-  const [tagFilters, setTagFilters] = useState<Record<string, TagFilterMode>>({})
-  const [showTagFilters, setShowTagFilters] = useState(false)
+  const [tagFilters, setTagFilters] = useState<Record<string, TagFilterMode>>(savedSession.tagFilters)
+  const [showTagFilters, setShowTagFilters] = useState(savedSession.showTagFilters)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isCaptionVisible, setIsCaptionVisible] = useState(false)
-  const [isCaptionPersistent, setIsCaptionPersistent] = useState(false)
+  const [isCaptionPersistent, setIsCaptionPersistent] = useState(Boolean(savedSession.selectedTrackId))
   const videoRef = useRef<HTMLVideoElement>(null)
   const captionTimerRef = useRef<number | undefined>(undefined)
   const autoplayTrackChangeRef = useRef(false)
-  const queueRef = useRef<string[]>([])
+  const queueRef = useRef<string[]>(savedSession.queue)
   const queueIndexRef = useRef(0)
   const queueSignatureRef = useRef('')
+  const restoreQueueRef = useRef(true)
+  const restorePlaybackRef = useRef(Boolean(savedSession.selectedTrackId))
+  const playbackRef = useRef({ trackId: savedSession.selectedTrackId, time: savedSession.playbackTime })
+  const volumeRef = useRef(savedSession.volume)
+  const mutedRef = useRef(savedSession.muted)
 
   useEffect(() => {
     let isActive = true
@@ -67,6 +79,7 @@ function App() {
         if (!isActive) return
         setTracks(library.videos.map((video): Track => ({ ...video, tint: 'red', tags: video.tags ?? [] })))
         if (library.tags) setTags(library.tags)
+        setHasLoadedLibrary(true)
       } catch {
       } finally {
         requestInFlight = false
@@ -120,20 +133,78 @@ function App() {
   })
 
   useEffect(() => {
+    if (!hasLoadedLibrary) return
     const signature = `${selectedTagKey}::${eligibleTrackIds}`
     if (signature === queueSignatureRef.current) return
     queueSignatureRef.current = signature
     const previousTrackId = selectedTrackId
     const previousFirstTrackId = queueRef.current[0]
-    const queue = shuffleTracks(eligibleTracks.map((track) => track.id))
-    if (queue.length > 1 && queue[0] === previousFirstTrackId && queue[0] !== previousTrackId) {
+    const isRestoring = restoreQueueRef.current
+    restoreQueueRef.current = false
+    const shuffledIds = shuffleTracks(eligibleTracks.map((track) => track.id))
+    const queue = isRestoring ? restoreQueue(queueRef.current, shuffledIds) : shuffledIds
+    if (!isRestoring && queue.length > 1 && queue[0] === previousFirstTrackId && queue[0] !== previousTrackId) {
       ;[queue[0], queue[1]] = [queue[1], queue[0]]
     }
     queueRef.current = queue
     const currentIndex = queue.indexOf(previousTrackId)
     queueIndexRef.current = currentIndex
+    if (isRestoring && tracks.some((track) => track.id === previousTrackId && track.videoUrl)) return
     synchronizeQueueSelection(queue, currentIndex)
-  }, [eligibleTrackIds, eligibleTracks, isPlaying, selectedTagKey, selectedTrackId])
+  }, [eligibleTrackIds, eligibleTracks, hasLoadedLibrary, isPlaying, selectedTagKey, selectedTrackId, tracks])
+
+  const saveSession = (captureVideo = false) => {
+    if (!hasLoadedLibrary) return
+    const currentTrack = isPlaying && playingTrack ? playingTrack : selectedTrack
+    const video = videoRef.current
+    if (captureVideo && video && video.readyState >= 1 && currentTrack) {
+      playbackRef.current = { trackId: currentTrack.id, time: video.currentTime }
+      volumeRef.current = video.volume
+      mutedRef.current = video.muted
+    }
+    try {
+      window.sessionStorage.setItem(jukeboxSessionKey, JSON.stringify({
+        tagFilters, showTagFilters, selectedTrackId: currentTrack?.id ?? '',
+        queue: queueRef.current,
+        playbackTime: playbackRef.current.trackId === currentTrack?.id ? playbackRef.current.time : 0,
+        volume: volumeRef.current, muted: mutedRef.current,
+      }))
+    } catch {
+    }
+  }
+  const persistSession = useEffectEvent(saveSession)
+
+  useEffect(() => {
+    persistSession()
+  }, [tagFilters, showTagFilters, selectedTrackId, hasLoadedLibrary, eligibleTrackIds])
+
+  useEffect(() => {
+    const handlePageHide = () => persistSession(true)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') persistSession(true)
+    }
+    window.addEventListener('pagehide', handlePageHide)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
+
+  const handleLoadedMetadata = () => {
+    const video = videoRef.current
+    if (!video) return
+    video.volume = volumeRef.current
+    video.muted = mutedRef.current
+    if (!restorePlaybackRef.current) return
+    restorePlaybackRef.current = false
+    if (selectedTrack?.id !== savedSession.selectedTrackId) return
+    video.currentTime = Number.isFinite(video.duration)
+      ? Math.min(savedSession.playbackTime, Math.max(0, video.duration - 0.1))
+      : savedSession.playbackTime
+  }
+
+  const handlePlaybackProgress = () => saveSession(true)
 
   useEffect(() => {
     if (!autoplayTrackChangeRef.current) return
@@ -230,7 +301,7 @@ function App() {
       <div className="jukebox">
         <section className="jukebox__player" aria-label="Video player">
           <div className={`jukebox__screen jukebox__screen--${selectedTrack?.tint ?? 'rose'} ${selectedTrack?.videoUrl ? 'jukebox__screen--video' : ''}`} onClickCapture={revealCaption}>
-            {selectedTrack?.videoUrl && <video ref={videoRef} className="jukebox__video" src={isPlaying && playingTrack ? playingTrack.videoUrl : selectedTrack.videoUrl} poster={selectedTrack.thumbnailUrl} preload="metadata" playsInline aria-label={`${selectedTrack.title} by ${selectedTrack.artist}`} onPlay={handleVideoPlay} onPause={() => { setIsPlaying(false); setIsCaptionPersistent(true); setIsCaptionVisible(false); window.clearTimeout(captionTimerRef.current) }} onEnded={() => moveTrack(1)} onError={() => setIsPlaying(false)} />}
+            {selectedTrack?.videoUrl && <video ref={videoRef} className="jukebox__video" src={isPlaying && playingTrack ? playingTrack.videoUrl : selectedTrack.videoUrl} poster={selectedTrack.thumbnailUrl} preload="metadata" playsInline aria-label={`${selectedTrack.title} by ${selectedTrack.artist}`} onLoadedMetadata={handleLoadedMetadata} onTimeUpdate={handlePlaybackProgress} onSeeked={handlePlaybackProgress} onVolumeChange={handlePlaybackProgress} onPlay={handleVideoPlay} onPause={() => { handlePlaybackProgress(); setIsPlaying(false); setIsCaptionPersistent(true); setIsCaptionVisible(false); window.clearTimeout(captionTimerRef.current) }} onEnded={() => moveTrack(1)} onError={() => setIsPlaying(false)} />}
             <div className="jukebox__screen-topline">
               <span><Radio size={15} /> NOW PLAYING</span>
             </div>

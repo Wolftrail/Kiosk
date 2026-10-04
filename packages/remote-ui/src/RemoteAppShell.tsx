@@ -23,7 +23,7 @@ export function RemoteAppShell({
   children,
   backHref = '/',
   onBack,
-  initialFocusSelector = '.remote-app-shell__back',
+  initialFocusSelector = '.remote-app-shell__brand',
 }: RemoteAppShellProps) {
   const handleBack = () => {
     if (onBack) return onBack()
@@ -39,11 +39,10 @@ export function RemoteAppShell({
     >
       <div className="remote-app-shell" data-theme={theme}>
         <header className="remote-app-shell__header">
-          <RemoteLink className="remote-app-shell__brand" href="/" aria-label="Kiosk home">
+          <RemoteLink className="remote-app-shell__brand" href={backHref} aria-label="Kiosk home">
             <span className="remote-app-shell__brand-mark" aria-hidden="true">K</span>
             <span>KIOSK</span>
           </RemoteLink>
-          <RemoteLink className="remote-app-shell__back" href={backHref}>Back to apps</RemoteLink>
         </header>
 
         <main className="remote-app-shell__main">
