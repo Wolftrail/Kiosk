@@ -17,7 +17,7 @@ import { RemoteAppShell } from '@kiosk/remote-ui'
 </RemoteAppShell>
 ```
 
-Available themes are `jukebox`, `workout`, and `bible`. The shell provides the full-viewport layout, common header and footer, Back navigation, initial focus, and D-pad movement. Its children remain app-specific.
+Available themes are `jukebox`, `workout`, and `scripture`. The shell provides the full-viewport layout, common header and footer, Back navigation, initial focus, and D-pad movement. Its children remain app-specific.
 
 For custom layouts, the unstyled controls are also available independently.
 

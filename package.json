@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "dev:all": "concurrently -k --names kiosk,jukebox,workout,bible \"npm run dev\" \"npm run dev --workspace @kiosk/jukebox\" \"npm run dev --workspace @kiosk/workout\" \"npm run dev --workspace @kiosk/bible\"",
+    "dev:all": "concurrently -k --names kiosk,jukebox,workout,scripture,recite \"npm run dev\" \"npm run dev --workspace @kiosk/jukebox\" \"npm run dev --workspace @kiosk/workout\" \"npm run dev --workspace @kiosk/scripture\" \"npm run dev --workspace @kiosk/recite\"",
     "build": "npm run build:kiosk && npm run build:apps",
     "build:kiosk": "tsc -b && vite build",
     "build:apps": "npm run build --workspaces --if-present",

@@ -1,0 +1,126 @@
+.scripture-app {
+  --scripture-ink: #202e2c;
+  --scripture-muted: #566865;
+  --scripture-accent: #24695e;
+  height: 100dvh;
+  color: var(--scripture-ink);
+}
+.scripture-app .remote-app-shell__navigation,
+.scripture-app .remote-app-shell { height: 100%; min-height: 0; overflow: clip; }
+.scripture-app .remote-app-shell { padding: 16px 28px 10px; background: #f4f6f4; }
+.scripture-app .remote-app-shell__header { min-height: 44px; }
+.scripture-app .remote-app-shell__main { flex: 1 1 0; min-height: 0; min-width: 0; padding: 12px 0; justify-content: flex-start; }
+.scripture-app .remote-app-shell__intro { margin: 0 0 12px; display: flex; align-items: baseline; gap: 22px; animation: none; }
+.scripture-app .remote-app-shell__intro h1 { font-size: 32px; order: -1; }
+.scripture-app .remote-app-shell__category { margin: 0; font-weight: 500; font-size: 14px; text-transform: none; color: var(--scripture-muted); }
+.scripture-app .remote-app-shell__content { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 18px; }
+.scripture-app .remote-app-shell__footer { flex: 0 0 auto; font-size: 10px; padding-top: 4px; }
+.scripture-app button, .scripture-app input { font: inherit; color: inherit; }
+.scripture-app button { min-width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; border: 1px solid #c9d3cf; background: #fff; border-radius: 4px; cursor: pointer; }
+.scripture-app button:disabled { cursor: default; opacity: .38; }
+.scripture-app button:hover:not(:disabled) { background: #e7f0ec; }
+.scripture-app button:focus-visible, .scripture-app input:focus-visible { outline: 3px solid #b25131; outline-offset: 2px; }
+.scripture-toolbar { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 16px; font-size: 15px; }
+.scripture-day-picker, .scripture-language, .scripture-playback, .scripture-pages, .scripture-text-size { display: flex; align-items: center; gap: 6px; }
+.scripture-day-picker label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.scripture-day-picker input { width: 68px; height: 44px; text-align: center; border: 1px solid #c9d3cf; border-radius: 4px; background: #fff; }
+.scripture-day-picker label > span { color: var(--scripture-muted); }
+.scripture-start { display: flex; gap: 8px; align-items: center; color: var(--scripture-muted); }
+.scripture-start input { height: 44px; width: 145px; padding: 0 8px; border: 1px solid #c9d3cf; background: #fff; border-radius: 4px; }
+.scripture-language { gap: 0; }
+.scripture-language button { padding-inline: 16px; border-radius: 0; }
+.scripture-language button:first-child { border-radius: 4px 0 0 4px; }
+.scripture-language button:last-child { border-radius: 0 4px 4px 0; }
+.scripture-language button[aria-pressed='true'] { color: #fff; background: var(--scripture-accent); border-color: var(--scripture-accent); }
+.scripture-language span { font-size: 11px; opacity: .7; }
+.scripture-workspace { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 255px minmax(0, 1fr); gap: 26px; }
+.scripture-schedule { min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.scripture-schedule-heading { display: flex; align-items: center; gap: 10px; padding: 14px 4px 18px; color: var(--scripture-accent); font-size: 18px; }
+.scripture-schedule-heading small { margin-left: auto; font-size: 12px; color: var(--scripture-muted); }
+.scripture-list { display: flex; flex-direction: column; gap: 7px; }
+.scripture-list button { width: 100%; height: auto; min-height: 86px; padding: 14px 12px; justify-content: flex-start; gap: 14px; border: 0; border-left: 3px solid transparent; border-radius: 0; text-align: left; background: transparent; }
+.scripture-list button[aria-pressed='true'] { background: #e0eae5; border-left-color: var(--scripture-accent); }
+.scripture-section-number { font-family: Georgia, serif; font-size: 18px; flex: 0 0 25px; color: #627870; }
+.scripture-list button > span:last-child { min-width: 0; }
+.scripture-list strong { display: block; font-size: 15px; font-weight: 600; }
+.scripture-reference { display: block; margin-top: 5px; font-size: 17px; overflow-wrap: anywhere; }
+.scripture-list small { display: block; color: var(--scripture-muted); font-size: 11px; margin-top: 6px; }
+.scripture-source { margin-top: auto; padding: 18px 4px 0; color: var(--scripture-muted); font-size: 12px; line-height: 1.5; }
+.scripture-source > span { font-size: 10px; }
+.scripture-source p { margin: 8px 0 0; }
+.scripture-reader { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #fff; border-top: 3px solid var(--scripture-accent); padding: 22px 30px 16px; }
+.scripture-reader-heading { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #e1e7e3; }
+.scripture-reader-heading > div:first-child { min-width: 0; }
+.scripture-reader-heading p { font-size: 12px; color: var(--scripture-muted); margin: 0 0 6px; }
+.scripture-reader-heading h2 { font: 400 30px/1.15 Georgia, 'Times New Roman', serif; margin: 0; overflow-wrap: anywhere; }
+.scripture-text-size { flex: 0 0 auto; }
+.scripture-reading-area { flex: 1 1 0; min-height: 0; min-width: 0; margin-block: 20px 10px; width: min(100%, 1050px); align-self: center; }
+.scripture-reading-text { font-family: Georgia, 'Times New Roman', serif; line-height: 1.55; overflow-wrap: anywhere; }
+.scripture-reading-text p { margin: 0 0 .45em; }
+.scripture-reading-text p:last-child { margin-bottom: 0; }
+.scripture-reading-text sup { font: 500 12px/1 'Trebuchet MS', sans-serif; color: var(--scripture-accent); vertical-align: .4em; white-space: nowrap; }
+.scripture-reading-text p[data-speaking='true'] { background: #edf3ed; }
+.scripture-measure { position: fixed; left: -10000px; top: 0; visibility: hidden; pointer-events: none; }
+.scripture-notice { flex: 0 0 auto; min-height: 24px; font-size: 12px; line-height: 1.4; color: #6b6257; padding-bottom: 6px; }
+.scripture-reader-controls { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 12px; border-top: 1px solid #e1e7e3; font-size: 14px; }
+.scripture-read-aloud { background: var(--scripture-accent) !important; color: white !important; border-color: var(--scripture-accent) !important; }
+.scripture-app .scripture-stop { color: #943f36; background: #fff4f1; border-color: #d9b3ac; }
+.scripture-app .scripture-stop:hover:not(:disabled) { background: #f8e3dd; }
+.scripture-app .scripture-stop:disabled { opacity: .6; }
+.scripture-pages span { min-width: 112px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+.scripture-mark-read[aria-pressed='true'] { color: var(--scripture-accent); background: #eaf1ed; }
+.scripture-empty { height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 14px; text-align: center; color: var(--scripture-muted); }
+.scripture-empty h3 { margin: 0; font: 400 24px/1.2 Georgia, serif; }
+.scripture-empty p { max-width: 540px; margin: 0; font-size: 17px; line-height: 1.5; }
+.scripture-empty .scripture-original { font-size: 13px; }
+@media (max-height: 750px) {
+  .scripture-app .remote-app-shell { padding-block: 8px; }
+  .scripture-app .remote-app-shell__main { padding-block: 8px; }
+  .scripture-app .remote-app-shell__content { gap: 10px; }
+  .scripture-list button { min-height: 70px; padding-block: 9px; }
+  .scripture-reader { padding: 14px 24px 12px; }
+  .scripture-reader-heading { padding-bottom: 10px; }
+  .scripture-reader-heading h2 { font-size: 26px; }
+  .scripture-reading-area { margin-block: 12px 8px; }
+  .scripture-source { font-size: 11px; }
+}
+@media (max-width: 1100px) {
+  .scripture-app .remote-app-shell { padding-inline: 16px; }
+  .scripture-workspace { grid-template-columns: 210px minmax(0, 1fr); gap: 16px; }
+  .scripture-language button { padding-inline: 10px; }
+  .scripture-toolbar { gap: 10px; }
+  .scripture-start { flex-direction: column; gap: 3px; align-items: flex-start; font-size: 11px; }
+  .scripture-start input { height: 36px; }
+  .scripture-reader { padding-inline: 20px; }
+}
+@media (max-width: 760px) {
+  .scripture-app .remote-app-shell { padding: 8px 12px; }
+  .scripture-app .remote-app-shell__intro { margin-bottom: 8px; gap: 12px; }
+  .scripture-app .remote-app-shell__intro h1 { font-size: 26px; }
+  .scripture-app .remote-app-shell__category { font-size: 11px; }
+  .scripture-toolbar { flex-wrap: wrap; gap: 6px; font-size: 13px; }
+  .scripture-language { margin-left: auto; }
+  .scripture-language span { display: none; }
+  .scripture-start { flex-direction: row; align-items: center; }
+  .scripture-today { padding-inline: 8px !important; }
+  .scripture-workspace { display: flex; flex-direction: column; gap: 8px; }
+  .scripture-schedule { flex: 0 0 auto; }
+  .scripture-schedule-heading, .scripture-source { display: none; }
+  .scripture-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .scripture-list button { min-height: 64px; padding: 6px; display: block; border-left: 0; border-bottom: 3px solid transparent; }
+  .scripture-list button[aria-pressed='true'] { border-bottom-color: var(--scripture-accent); }
+  .scripture-section-number, .scripture-list small { display: none; }
+  .scripture-list strong { font-size: 11px; }
+  .scripture-reference { font-size: 12px; }
+  .scripture-reader { flex: 1 1 0; padding: 10px 12px; }
+  .scripture-reader-heading h2 { font-size: 24px; }
+  .scripture-reader-heading p { font-size: 10px; }
+  .scripture-reader-controls { gap: 6px; padding-top: 8px; }
+  .scripture-pages { margin-left: auto; }
+  .scripture-pages span { min-width: 92px; font-size: 11px; }
+  .scripture-playback button, .scripture-mark-read { padding-inline: 8px !important; }
+  .scripture-reader-controls button { height: 40px; min-width: 40px; }
+  .scripture-reader-controls .scripture-mark-read { margin-left: auto; }
+  .scripture-reader-controls .scripture-mark-read span { display: none; }
+  .scripture-app .remote-app-shell__footer { display: none; }
+}

@@ -1,4 +1,4 @@
-# Bible
+# Scripture
 
 A daily, bilingual reading view for the kiosk. English uses the King James
 Version with Apocrypha; Dutch uses the Statenvertaling with Apocrypha.
@@ -71,19 +71,19 @@ are imported from Catholic Gallery's monthly schedule pages.
 From the repository root:
 
 ```powershell
-npm run dev --workspace @kiosk/bible
-npm test --workspace @kiosk/bible
-npm run build --workspace @kiosk/bible
+npm run dev --workspace @kiosk/scripture
+npm test --workspace @kiosk/scripture
+npm run build --workspace @kiosk/scripture
 npm run lint
 ```
 
-The app is available at `http://localhost:5176/apps/bible/`, or on the shared
+The app is available at `http://localhost:5176/apps/scripture/`, or on the shared
 kiosk origin when running `npm run dev:all`.
 
 Regenerate the active schedule from Catholic Gallery's twelve monthly pages:
 
 ```powershell
-node apps/bible/tools/import-catholic-plan.mjs
+node apps/scripture/tools/import-catholic-plan.mjs
 ```
 
 The importer checks for all 365 four-part days and writes
@@ -91,7 +91,7 @@ The importer checks for all 365 four-part days and writes
 inactive historical OSB snapshot, use Node.js and Poppler's `pdftotext` on PATH:
 
 ```powershell
-node apps/bible/tools/import-data.mjs '<Bible sources directory>' '<reading-plan.pdf>'
+node apps/scripture/tools/import-data.mjs '<Bible sources directory>' '<reading-plan.pdf>'
 ```
 
 Text import normalizes whitespace, drops empty markers, and checks Genesis

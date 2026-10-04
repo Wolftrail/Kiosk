@@ -13,9 +13,9 @@ npm install
 npm run dev:all
 ```
 
-Open `http://localhost:5173/`. The kiosk proxies `/apps/jukebox/`, `/apps/workout/`, and `/apps/bible/` to the app dev servers, so the browser stays on one origin. `npm run dev` starts only the kiosk; `npm run dev --workspace @kiosk/jukebox` starts an individual app.
+Open `http://localhost:5173/`. The kiosk proxies `/apps/jukebox/`, `/apps/workout/`, `/apps/scripture/`, and `/apps/recite/` to the app dev servers, so the browser stays on one origin. `npm run dev` starts only the kiosk; `npm run dev --workspace @kiosk/jukebox` starts an individual app.
 
-`npm run build` builds the kiosk and all three apps into one `dist/` tree. `npm run lint` runs Oxlint across the workspace.
+`npm run build` builds the kiosk and all four apps into one `dist/` tree. `npm run lint` runs Oxlint across the workspace.
 
 ## Management And Production
 
@@ -114,7 +114,9 @@ Use `RemoteAppShell` from `@kiosk/remote-ui` for a full-viewport app frame with 
 
 Each app is an independent npm workspace under `apps/`. The kiosk catalog lives in `src/apps/registry.ts`; add the app's name, description, category, icon, project path, and launch URL there.
 
-The initial workspaces are Jukebox, Workout, and Bible. Each builds to `dist/apps/<name>/` and is served under `/apps/<name>/` on the same origin as the kiosk. See `apps/README.md` for the project conventions.
+The app workspaces are Jukebox, Workout, Scripture, and Recite. Each builds to `dist/apps/<name>/` and is served under `/apps/<name>/` on the same origin as the kiosk. See `apps/README.md` for the project conventions.
+
+Recite provides TV deck selection and flashcard training without card-management controls. Publish JSON exports from the original Recite application to its read-only library file. See [the Recite guide](apps/recite/README.md) for the format, publishing workflow, and browser-local progress behavior.
 
 ## Project layout
 
@@ -124,5 +126,5 @@ src/apps/registry.ts App directory and launch URL registry
 packages/remote-ui/  Shared controls and Bluetooth-remote navigation
 apps/jukebox/        Jukebox React/TypeScript workspace
 apps/workout/        Workout React/TypeScript workspace
-apps/bible/          Bible React/TypeScript workspace
+apps/scripture/          Scripture React/TypeScript workspace
 ```

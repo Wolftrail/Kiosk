@@ -6,15 +6,11 @@ import { defineConfig } from 'vite'
 const projectRoot = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
-  base: '/apps/bible/',
+  base: '/apps/recite/',
   plugins: [react()],
-  server: {
-    host: '0.0.0.0',
-    port: 5176,
-    strictPort: true,
-  },
+  server: { host: '0.0.0.0', port: 5178, strictPort: true },
   build: {
-    outDir: resolve(projectRoot, '../../dist/apps/bible'),
+    outDir: resolve(projectRoot, '../../dist/apps/recite'),
     emptyOutDir: false,
   },
 })

@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  Layers,
   Dumbbell,
   Music2,
 } from 'lucide-react'
@@ -17,6 +18,16 @@ export type KioskApp = {
 }
 
 export const appCatalog: KioskApp[] = [
+  {
+    id: 'recite',
+    name: 'Recite',
+    description: 'Train your memory with flashcard decks.',
+    category: 'Learning',
+    icon: Layers,
+    tone: 'yellow',
+    projectPath: 'apps/recite',
+    url: '/apps/recite/',
+  },
   {
     id: 'jukebox',
     name: 'Jukebox',
@@ -38,13 +49,13 @@ export const appCatalog: KioskApp[] = [
     url: '/apps/workout/',
   },
   {
-    id: 'bible',
-    name: 'Bible',
+    id: 'scripture',
+    name: 'Scripture',
     description: 'Read, search, and follow along with Scripture.',
     category: 'Reading',
     icon: BookOpen,
     tone: 'blue',
-    projectPath: 'apps/bible',
-    url: '/apps/bible/',
+    projectPath: 'apps/scripture',
+    url: '/apps/scripture/',
   },
 ]

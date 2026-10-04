@@ -113,7 +113,7 @@ body,
   --remote-accent-soft: #dfe6c7;
 }
 
-.remote-app-shell[data-theme='bible'] {
+.remote-app-shell[data-theme='scripture'] {
   --remote-accent: #497785;
   --remote-accent-soft: #d3e3e4;
 }

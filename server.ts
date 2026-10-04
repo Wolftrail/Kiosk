@@ -8,9 +8,10 @@ import { handleApiRequest, protectManagementAccess } from './apps/jukebox/yt-dlp
 const projectRoot = fileURLToPath(new URL('.', import.meta.url))
 const distRoot = resolve(projectRoot, 'dist')
 const appRoots = new Map([
+  ['/apps/recite', resolve(distRoot, 'apps/recite')],
   ['/apps/jukebox', resolve(distRoot, 'apps/jukebox')],
   ['/apps/workout', resolve(distRoot, 'apps/workout')],
-  ['/apps/bible', resolve(distRoot, 'apps/bible')],
+  ['/apps/scripture', resolve(distRoot, 'apps/scripture')],
 ])
 const contentTypes: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',

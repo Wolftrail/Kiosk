@@ -245,7 +245,7 @@
   transform: rotate(-7deg);
 }
 
-.app-tile__art--bible .app-tile__icon {
+.app-tile__art--scripture .app-tile__icon {
   border-radius: 12px 12px 12px 3px;
   color: #f7f5ec;
   background: #557884;

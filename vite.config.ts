@@ -26,6 +26,11 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      '/apps/recite': {
+        target: 'http://127.0.0.1:5178',
+        changeOrigin: true,
+        ws: true,
+      },
       '/apps/jukebox': {
         target: 'http://127.0.0.1:5174',
         changeOrigin: false,
@@ -36,7 +41,7 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
-      '/apps/bible': {
+      '/apps/scripture': {
         target: 'http://127.0.0.1:5176',
         changeOrigin: true,
         ws: true,

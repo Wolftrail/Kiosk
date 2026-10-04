@@ -16,7 +16,7 @@ type Preferences = { language: Language; start: string; font: number; completed:
 function loadPreferences(): Preferences {
   const fallback: Preferences = { language: 'en', start: localDate(), font: 28, completed: [] }
   try {
-    const stored = JSON.parse(localStorage.getItem('kiosk-bible') ?? 'null')
+    const stored = JSON.parse(localStorage.getItem('kiosk-scripture') ?? 'null')
     if (!stored || typeof stored !== 'object') return fallback
     const position = stored.position
     const validPosition = position && Number.isInteger(position.day) && position.day >= 1 && position.day <= 365
@@ -90,7 +90,7 @@ export default function App() {
   useEffect(() => {
     const { chapter, verse, book, location, offset } = anchor.current
     const position = { day, section, anchor: { chapter, verse, book, location, offset } }
-    try { localStorage.setItem('kiosk-bible', JSON.stringify({ ...preferences, position })) }
+    try { localStorage.setItem('kiosk-scripture', JSON.stringify({ ...preferences, position })) }
     catch { toast(labels[preferences.language].storage, { variant: 'warning' }) }
     document.documentElement.lang = preferences.language
   }, [preferences, day, section, pageIndex, pages, toast])
@@ -305,69 +305,69 @@ export default function App() {
   }
 
   return (
-    <div className="bible-app">
-      <RemoteAppShell title="Bible" category={text.plan} theme="bible" initialFocusSelector=".bible-list button[aria-pressed='true']">
-        <div className="bible-toolbar">
-          <div className="bible-day-picker">
+    <div className="scripture-app">
+      <RemoteAppShell title="Scripture" category={text.plan} theme="scripture" initialFocusSelector=".scripture-list button[aria-pressed='true']">
+        <div className="scripture-toolbar">
+          <div className="scripture-day-picker">
             <RemoteButton title={text.previousDay} aria-label={text.previousDay} disabled={day === 1} onClick={() => changeDay(day - 1)}><ChevronLeft /></RemoteButton>
             <label>{text.day} <input aria-label={text.day} type="number" min="1" max="365" value={day} onChange={(event) => { if (event.target.value) changeDay(Number(event.target.value)) }} /> <span>/ 365</span></label>
             <RemoteButton title={text.nextDay} aria-label={text.nextDay} disabled={day === 365} onClick={() => changeDay(day + 1)}><ChevronRight /></RemoteButton>
-            <RemoteButton className="bible-today" onClick={() => changeDay(dayForDate(start))}><RotateCcw size={18} />{text.today}</RemoteButton>
+            <RemoteButton className="scripture-today" onClick={() => changeDay(dayForDate(start))}><RotateCcw size={18} />{text.today}</RemoteButton>
           </div>
-          <label className="bible-start">{text.start}<input type="date" value={start} onChange={(event) => {
+          <label className="scripture-start">{text.start}<input type="date" value={start} onChange={(event) => {
             if (!event.target.value) return
             changeDay(dayForDate(event.target.value))
             setPreferences((current) => ({ ...current, start: event.target.value }))
           }} /></label>
-          <div className="bible-language" role="group" aria-label={language === 'nl' ? 'Taal' : 'Language'}>
+          <div className="scripture-language" role="group" aria-label={language === 'nl' ? 'Taal' : 'Language'}>
             <RemoteButton aria-pressed={language === 'en'} onClick={() => changeLanguage('en')}>English <span>KJV</span></RemoteButton>
             <RemoteButton aria-pressed={language === 'nl'} onClick={() => changeLanguage('nl')}>Nederlands <span>SV</span></RemoteButton>
           </div>
         </div>
 
-        <div className="bible-workspace">
-          <aside className="bible-schedule">
-            <div className="bible-schedule-heading"><BookOpen size={22} /><span>{text.day} {day}</span><small>{readCount}/4 {text.complete}</small></div>
-            <nav className="bible-list" aria-label={text.plan}>
+        <div className="scripture-workspace">
+          <aside className="scripture-schedule">
+            <div className="scripture-schedule-heading"><BookOpen size={22} /><span>{text.day} {day}</span><small>{readCount}/4 {text.complete}</small></div>
+            <nav className="scripture-list" aria-label={text.plan}>
               {text.sections.map((label, index) => (
                 <RemoteButton key={label} aria-pressed={section === index} onClick={() => changeSection(index)}>
-                  <span className="bible-section-number">{completed.includes(`catholic-gallery-v1:${start}:${day}:${index}`) ? <Check size={20} /> : `0${index + 1}`}</span>
-                  <span><strong>{label}</strong><span className="bible-reference">{plan[day - 1]?.[index] ? planReference(plan[day - 1][index], language) : '...'}</span><small>CPDV · {text.pdf}</small></span>
+                  <span className="scripture-section-number">{completed.includes(`catholic-gallery-v1:${start}:${day}:${index}`) ? <Check size={20} /> : `0${index + 1}`}</span>
+                  <span><strong>{label}</strong><span className="scripture-reference">{plan[day - 1]?.[index] ? planReference(plan[day - 1][index], language) : '...'}</span><small>CPDV · {text.pdf}</small></span>
                 </RemoteButton>
               ))}
             </nav>
-            <div className="bible-source"><span>CATHOLIC GALLERY</span><p>{language === 'nl' ? '365 dagen · Inclusief deuterocanonieke boeken' : '365 days · Including deuterocanonical books'}</p></div>
+            <div className="scripture-source"><span>CATHOLIC GALLERY</span><p>{language === 'nl' ? '365 dagen · Inclusief deuterocanonieke boeken' : '365 days · Including deuterocanonical books'}</p></div>
           </aside>
 
-          <section className="bible-reader" aria-label={text.sections[section]}>
-            <header className="bible-reader-heading">
+          <section className="scripture-reader" aria-label={text.sections[section]}>
+            <header className="scripture-reader-heading">
               <div><p>{text.sections[section]} · {text.edition}</p><h2 title={reading?.reference}>{heading ?? text.sections[section]}</h2></div>
-              <div className="bible-text-size" role="group" aria-label={language === 'nl' ? 'Tekstgrootte' : 'Text size'}>
+              <div className="scripture-text-size" role="group" aria-label={language === 'nl' ? 'Tekstgrootte' : 'Text size'}>
                 <RemoteButton title={text.smaller} aria-label={text.smaller} disabled={font === 24} onClick={() => setPreferences((current) => ({ ...current, font: current.font - 4 }))}><ZoomOut size={21} /></RemoteButton>
                 <RemoteButton title={text.larger} aria-label={text.larger} disabled={font === 36} onClick={() => setPreferences((current) => ({ ...current, font: current.font + 4 }))}><ZoomIn size={21} /></RemoteButton>
               </div>
             </header>
-            <div className="bible-reading-area" ref={viewport} style={{ fontSize: font }}>
-              {loading ? <div className="bible-empty" role="status"><BookOpen size={32} /><p>{text.loading}</p></div>
-                : error ? <div className="bible-empty" role="alert"><p>{text.error}</p><RemoteButton onClick={() => { setLoading(true); setError(false); setRetry((current) => current + 1) }}>{text.retry}</RemoteButton></div>
-                  : reading && !reading.verses.length ? <div className="bible-empty"><BookOpen size={32} /><h3>{text.pending}</h3><p>{reading.note}</p><p className="bible-original">{text.pdf}: {reading.original}</p></div>
-                    : <div className="bible-reading-text" key={readingKey} lang={language}>
+            <div className="scripture-reading-area" ref={viewport} style={{ fontSize: font }}>
+              {loading ? <div className="scripture-empty" role="status"><BookOpen size={32} /><p>{text.loading}</p></div>
+                : error ? <div className="scripture-empty" role="alert"><p>{text.error}</p><RemoteButton onClick={() => { setLoading(true); setError(false); setRetry((current) => current + 1) }}>{text.retry}</RemoteButton></div>
+                  : reading && !reading.verses.length ? <div className="scripture-empty"><BookOpen size={32} /><h3>{text.pending}</h3><p>{reading.note}</p><p className="scripture-original">{text.pdf}: {reading.original}</p></div>
+                    : <div className="scripture-reading-text" key={readingKey} lang={language}>
                       {currentPage.map((fragment, index) => <p key={`${fragment.index}:${index}`} data-speaking={spokenVerse === fragment.index}><sup title={fragment.book ? bookName(fragment.book, language) : undefined}>{index > 0 && fragment.book !== currentPage[index - 1].book && fragment.book ? `${bookName(fragment.book, language)} ` : ''}{fragment.chapter}:{fragment.verse} </sup>{fragment.text}</p>)}
                     </div>}
             </div>
-            <div className="bible-measure bible-reading-text" ref={measurement} aria-hidden="true" style={{ fontSize: font }} />
-            <div className="bible-notice" role="status">{notice || (reading?.verses.length ? `${text.pdf}: ${reading.original}` : '')}</div>
-            <footer className="bible-reader-controls">
-              <div className="bible-playback">
-                <RemoteButton className="bible-read-aloud" disabled={!reading?.verses.length || loading} onClick={speak}>{audio === 'playing' ? <Pause size={20} /> : audio === 'paused' ? <Play size={20} /> : <Volume2 size={20} />}<span>{audioLabel}</span></RemoteButton>
-                <RemoteButton className="bible-stop" title={text.stop} aria-label={text.stop} disabled={audio === 'idle'} onClick={stopAudio}><Square size={14} fill="currentColor" /><span>{text.stop}</span></RemoteButton>
+            <div className="scripture-measure scripture-reading-text" ref={measurement} aria-hidden="true" style={{ fontSize: font }} />
+            <div className="scripture-notice" role="status">{notice || (reading?.verses.length ? `${text.pdf}: ${reading.original}` : '')}</div>
+            <footer className="scripture-reader-controls">
+              <div className="scripture-playback">
+                <RemoteButton className="scripture-read-aloud" disabled={!reading?.verses.length || loading} onClick={speak}>{audio === 'playing' ? <Pause size={20} /> : audio === 'paused' ? <Play size={20} /> : <Volume2 size={20} />}<span>{audioLabel}</span></RemoteButton>
+                <RemoteButton className="scripture-stop" title={text.stop} aria-label={text.stop} disabled={audio === 'idle'} onClick={stopAudio}><Square size={14} fill="currentColor" /><span>{text.stop}</span></RemoteButton>
               </div>
-              <div className="bible-pages">
+              <div className="scripture-pages">
                 <RemoteButton title={text.previous} aria-label={text.previous} disabled={pageIndex <= 0 || !pages.length || loading} onClick={() => changePage(pageIndex - 1)}><ChevronLeft /></RemoteButton>
                 <span>{text.page} {pages.length ? pageIndex + 1 : 0} {text.of} {pages.length}</span>
                 <RemoteButton title={nextLabel} aria-label={nextLabel} disabled={!pages.length || loading || finalPage && isComplete} onClick={() => lastPage ? finishAndContinue() : changePage(pageIndex + 1)}>{finalPage ? <Check /> : <ChevronRight />}</RemoteButton>
               </div>
-              <RemoteButton className="bible-mark-read" title={isComplete ? text.undo : text.done} aria-label={isComplete ? text.undo : text.done} disabled={!reading?.verses.length || loading} aria-pressed={isComplete} onClick={() => setPreferences((current) => ({ ...current, completed: isComplete ? current.completed.filter((key) => key !== completionKey) : [...current.completed, completionKey] }))}>{isComplete ? <Check size={20} /> : <Circle size={20} />}<span>{isComplete ? text.undo : text.done}</span></RemoteButton>
+              <RemoteButton className="scripture-mark-read" title={isComplete ? text.undo : text.done} aria-label={isComplete ? text.undo : text.done} disabled={!reading?.verses.length || loading} aria-pressed={isComplete} onClick={() => setPreferences((current) => ({ ...current, completed: isComplete ? current.completed.filter((key) => key !== completionKey) : [...current.completed, completionKey] }))}>{isComplete ? <Check size={20} /> : <Circle size={20} />}<span>{isComplete ? text.undo : text.done}</span></RemoteButton>
             </footer>
           </section>
         </div>

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { RemoteLink } from './RemoteLink'
 import { RemoteNavigationProvider } from './RemoteNavigationProvider'
 
-export type RemoteAppTheme = 'jukebox' | 'workout' | 'bible'
+export type RemoteAppTheme = 'jukebox' | 'workout' | 'scripture' | 'recite'
 
 export type RemoteAppShellProps = {
   title: string

@@ -1,0 +1,16 @@
+{
+  "decks": [
+    { "id": "sample-world", "name": "Around the world", "enabled": true },
+    { "id": "sample-nature", "name": "The natural world", "enabled": true }
+  ],
+  "flashcards": [
+    { "id": "sample-world-1", "deckId": "sample-world", "front": "What is the capital of Japan?", "back": "Tokyo" },
+    { "id": "sample-world-2", "deckId": "sample-world", "front": "Which continent is home to the Sahara?", "back": "Africa" },
+    { "id": "sample-world-3", "deckId": "sample-world", "front": "Which ocean is the largest?", "back": "The Pacific Ocean" },
+    { "id": "sample-world-4", "deckId": "sample-world", "front": "In which country is Machu Picchu?", "back": "Peru" },
+    { "id": "sample-nature-1", "deckId": "sample-nature", "front": "What gas do plants absorb during photosynthesis?", "back": "Carbon dioxide" },
+    { "id": "sample-nature-2", "deckId": "sample-nature", "front": "How many legs does an insect have?", "back": "Six" },
+    { "id": "sample-nature-3", "deckId": "sample-nature", "front": "What is the chemical formula for water?", "back": "H2O" },
+    { "id": "sample-nature-4", "deckId": "sample-nature", "front": "What force keeps the planets in orbit around the Sun?", "back": "Gravity" }
+  ]
+}
