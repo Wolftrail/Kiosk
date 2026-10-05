@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Check out tagged commit
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run regression tests
+        run: |
+          npm test
+          npm test --workspaces --if-present
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build kiosk and apps
+        run: npm run build
+
+      - name: Package runtime
+        env:
+          RELEASE_DIR: ${{ runner.temp }}/kiosk-release
+        run: |
+          mkdir -p "$RELEASE_DIR/kiosk/apps/jukebox" "$RELEASE_DIR/kiosk/packages/remote-ui/src"
+          cp -R dist "$RELEASE_DIR/kiosk/"
+          cp package.json server.ts schedule-api.ts README.md LICENSE "$RELEASE_DIR/kiosk/"
+          cp apps/jukebox/yt-dlp-plugin.ts "$RELEASE_DIR/kiosk/apps/jukebox/"
+          cp packages/remote-ui/src/scheduler.ts "$RELEASE_DIR/kiosk/packages/remote-ui/src/"
+          tar -czf "$RELEASE_DIR/kiosk.tar.gz" -C "$RELEASE_DIR" kiosk
+          cd "$RELEASE_DIR"
+          sha256sum kiosk.tar.gz > SHA256SUMS
+
+      - name: Smoke-test extracted release without dependencies
+        env:
+          RELEASE_DIR: ${{ runner.temp }}/kiosk-release
+          KIOSK_PORT: '18080'
+        run: |
+          mkdir -p "$RUNNER_TEMP/kiosk-smoke"
+          tar -xzf "$RELEASE_DIR/kiosk.tar.gz" -C "$RUNNER_TEMP/kiosk-smoke"
+          cd "$RUNNER_TEMP/kiosk-smoke/kiosk"
+          node --experimental-strip-types server.ts > "$RUNNER_TEMP/kiosk-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; cat "$RUNNER_TEMP/kiosk-server.log"' EXIT
+          curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 http://localhost:18080/ > /dev/null
+          for path in /manage /apps/jukebox/ /apps/workout/ /apps/scripture/ /apps/recite/; do
+            curl --fail --silent --show-error "http://localhost:18080$path" | grep -qi '<!doctype html>'
+          done
+          curl --fail --silent --show-error http://localhost:18080/api/schedules | jq -e '.schedules == []'
+
+      - name: Publish GitHub release
+        env:
+          RELEASE_DIR: ${{ runner.temp }}/kiosk-release
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          prerelease=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            prerelease+=(--prerelease)
+          fi
+          if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --generate-notes "${prerelease[@]}"
+          fi
+          gh release upload "$RELEASE_TAG" "$RELEASE_DIR/kiosk.tar.gz" "$RELEASE_DIR/SHA256SUMS" --clobber

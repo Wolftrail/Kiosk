@@ -17,6 +17,38 @@ Open `http://localhost:5173/`. The kiosk proxies `/apps/jukebox/`, `/apps/workou
 
 `npm run build` builds the kiosk and all four apps into one `dist/` tree. `npm run lint` runs Oxlint across the workspace.
 
+## Releases
+
+Push a version tag on the commit to release, from any branch:
+
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The [release workflow](.github/workflows/release.yml) runs the root and workspace
+tests, lint, and the full build on Linux with Node.js 22.18.0. After smoke-testing
+the packaged server, it creates a GitHub Release with generated notes,
+`kiosk.tar.gz`, and `SHA256SUMS`. Tags containing a hyphen, such as `v1.0.0-beta.1`,
+are published as prereleases. Rerunning the workflow replaces the assets on the
+existing release. Branch pushes alone do not publish releases.
+
+Download both assets from the GitHub Release. On Linux, verify and extract them:
+
+```sh
+sha256sum -c SHA256SUMS
+tar -xzf kiosk.tar.gz
+cd kiosk
+npm start
+```
+
+The archive includes the built kiosk, all apps, and the production server. No
+`npm install` or build is needed. Install Node.js 22.18 or newer, plus yt-dlp and
+FFmpeg for downloads, as described below. Local videos, library metadata,
+schedules, credentials, and Node.js itself are not bundled. Extract updates into
+a new directory and migrate `data/`, `apps/jukebox/data/`, and
+`apps/jukebox/public/videos/` from the old installation while the server is stopped.
+
 ## Management And Production
 
 The TV jukebox provides playback and tag filters only. Open `/manage` on the root kiosk server from a laptop or phone to queue YouTube links, view download status, create or delete tags, and assign tags to videos. There is no YouTube search. The shared on-screen keyboard remains available but is unused.
