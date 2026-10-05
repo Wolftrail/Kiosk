@@ -19,7 +19,7 @@ type LibraryVideo = {
   audioNormalization?: 'ebu-r128-v1'
 }
 
-type RequestBody = { url?: unknown; query?: unknown; name?: unknown; videoId?: unknown; tags?: unknown; videoIds?: unknown; tag?: unknown; assigned?: unknown }
+type RequestBody = { url?: unknown; query?: unknown; name?: unknown; newName?: unknown; videoId?: unknown; tags?: unknown; videoIds?: unknown; tag?: unknown; assigned?: unknown }
 type DownloadResolution = { video: LibraryVideo; alreadyExists: boolean }
 type DownloadJob = {
   id: string
@@ -692,6 +692,39 @@ export function handleApiRequest(request: IncomingMessage, response: ServerRespo
     return
   }
 
+  if (pathname === `${apiPrefix}tags` && request.method === 'PATCH') {
+    void readRequestBody(request)
+      .then(async ({ name, newName }) => {
+        if (typeof name !== 'string' || typeof newName !== 'string') throw new Error('Provide the current and new tag names.')
+        const tags = await readTags()
+        const tag = findTag(tags, name)
+        if (!tag) throw new Error('Tag was not found.')
+        const renamedTag = normalizeTag(newName)
+        const duplicate = findTag(tags, renamedTag)
+        if (duplicate && duplicate !== tag) throw new Error(`A tag named "${duplicate}" already exists.`)
+        if (renamedTag === tag) return { tag, tags }
+        const updatedTags = tags.map((item) => item === tag ? renamedTag : item)
+        await writeTags(updatedTags)
+        try {
+          await updateLibrary((library) => library.map((video) => ({
+            ...video,
+            tags: video.tags.map((item) => item === tag ? renamedTag : item),
+          })))
+        } catch (error) {
+          await writeTags(tags)
+          throw error
+        }
+        return { tag: renamedTag, tags: updatedTags }
+      })
+      .then((result) => sendJson(response, 200, result))
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Could not rename tag.'
+        const status = message === 'Tag was not found.' ? 404 : message.startsWith('Tags must') || message.startsWith('Provide') ? 400 : message.startsWith('A tag named') ? 409 : 500
+        sendJson(response, status, { error: message })
+      })
+    return
+  }
+
   if (pathname === `${apiPrefix}tags` && request.method === 'DELETE') {
     void readRequestBody(request)
       .then(async ({ name }) => {
@@ -716,6 +749,45 @@ export function handleApiRequest(request: IncomingMessage, response: ServerRespo
       .catch((error: unknown) => {
         const message = error instanceof Error ? error.message : 'Could not delete tag.'
         const status = message === 'Tag was not found.' ? 404 : message.startsWith('Tags must') || message.startsWith('Provide') ? 400 : 500
+        sendJson(response, status, { error: message })
+      })
+    return
+  }
+
+  if (pathname === `${apiPrefix}videos` && request.method === 'DELETE') {
+    void readRequestBody(request)
+      .then(async ({ videoIds }) => {
+        if (!Array.isArray(videoIds) || videoIds.length === 0 || !videoIds.every((id) => typeof id === 'string' && id.length > 0)) {
+          throw new Error('Provide one or more video IDs.')
+        }
+        const ids = new Set(videoIds as string[])
+        let removed: Array<LibraryVideo & { tags: string[] }> = []
+        const updatedLibrary = await updateLibrary((library) => {
+          if ([...ids].some((id) => !library.some((item) => item.id === id))) throw new Error('Video was not found in the library.')
+          removed = library.filter((item) => ids.has(item.id))
+          const remaining = library.filter((item) => !ids.has(item.id))
+          const remainingFiles = new Set(remaining.flatMap((item) => [item.filename, item.thumbnailFilename].filter((filename): filename is string => Boolean(filename))))
+          for (const item of removed) {
+            for (const filename of [item.filename, item.thumbnailFilename]) {
+              if (!filename || remainingFiles.has(filename)) continue
+              if (filename !== basename(filename) || filename.includes('\\') || filename === '.' || filename === '..') {
+                throw new Error('Invalid library media filename.')
+              }
+            }
+          }
+          return remaining
+        })
+        const remainingFiles = new Set(updatedLibrary.flatMap((item) => [item.filename, item.thumbnailFilename].filter((filename): filename is string => Boolean(filename))))
+        await Promise.all(removed.flatMap((item) => [item.filename, item.thumbnailFilename]
+          .filter((filename): filename is string => filename !== undefined && !remainingFiles.has(filename))
+          .map((filename) => rm(resolve(videoDirectory, filename), { force: true })))
+        )
+        return { deleted: removed.length }
+      })
+      .then((result) => sendJson(response, 200, result))
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Could not delete videos.'
+        const status = message.startsWith('Provide') ? 400 : message.startsWith('Video was not found') ? 404 : 500
         sendJson(response, status, { error: message })
       })
     return

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Clock, Download, Film, LoaderCircle, Plus, RefreshCw, Rows3, Tags, Trash2, X } from 'lucide-react'
+import { Check, Clock, Download, Film, LoaderCircle, Pencil, Plus, RefreshCw, Rows3, Tags, Trash2, X } from 'lucide-react'
 import { RemoteNavigationProvider, useToast } from '@kiosk/remote-ui'
 import Schedules from './Schedules'
 import './Management.css'
@@ -28,11 +28,13 @@ export default function Management() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [url, setUrl] = useState('')
   const [newTag, setNewTag] = useState('')
+  const [renamingTag, setRenamingTag] = useState<string | null>(null)
+  const [renamedTag, setRenamedTag] = useState('')
   const [filter, setFilter] = useState('')
   const [tagFilter, setTagFilter] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ kind: 'tag'; tag: string } | { kind: 'videos'; videos: Video[] } | null>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
   const selectionAnchor = useRef<string | null>(null)
   const selectedVideos = videos.filter((video) => selectedIds.includes(video.id))
@@ -134,6 +136,15 @@ export default function Management() {
     })
   }
 
+  function renameTag(event: FormEvent, tag: string) {
+    event.preventDefault()
+    void perform(async () => {
+      await request('tags', mutation('PATCH', { name: tag, newName: renamedTag.trim() }))
+      setRenamingTag(null)
+      setRenamedTag('')
+    }, 'Tag renamed.')
+  }
+
   return <RemoteNavigationProvider><div className={`management ${section === 'schedules' ? 'management--schedules' : ''}`}>
     <header className="management__header"><a href="/" className="management__brand">KIOSK</a><span>Management</span><a href="/apps/jukebox/">Open jukebox</a></header>
     <div className="management__tabs" role="tablist" aria-label="Management sections">
@@ -166,6 +177,7 @@ export default function Management() {
             setSelectedIds((current) => [...new Set([...current, ...visibleVideos.map((video) => video.id)])])
           }}><Rows3 size={17} />Select visible</button>
           <span role="status">{selectedVideos.length} selected{selectedVideos.length > visibleSelectedCount ? ` (${selectedVideos.length - visibleSelectedCount} hidden)` : ''}</span>
+          <button type="button" className="is-destructive" disabled={busy || selectedVideos.length === 0} onClick={() => setPendingDelete({ kind: 'videos', videos: selectedVideos })}><Trash2 size={17} /> Delete selected</button>
           <button type="button" title="Clear selection" aria-label="Clear selection" disabled={busy || selectedVideos.length === 0} onClick={() => { selectionAnchor.current = null; setSelectedIds([]) }}><X size={17} /></button>
         </div><div className="management__video-list">
           {visibleVideos.map((video) => <button type="button" className={`management__video ${selectedIds.includes(video.id) ? 'is-selected' : ''}`} key={video.id} aria-pressed={selectedIds.includes(video.id)} disabled={busy} onClick={(event) => selectVideo(video.id, event.shiftKey)}>{video.thumbnailUrl ? <img src={video.thumbnailUrl} alt="" loading="lazy" /> : <Film size={30} />}<span>{video.title}<small>{video.artist}</small><small className="management__video-tags"><Tags size={13} aria-hidden="true" /><span>{video.tags.join(' / ') || 'Untagged'}</span></small></span><small>{video.duration}</small></button>)}
@@ -178,7 +190,7 @@ export default function Management() {
             void perform(async () => { await request('video-tags', mutation('POST', { videoIds: selectedVideos.map((video) => video.id), tag, assigned })) }, `Tag ${assigned ? 'added to' : 'removed from'} ${selectedVideos.length} ${selectedVideos.length === 1 ? 'video' : 'videos'}.`)
           }} />{tag}</label>
         })}</div>{tags.length === 0 && <p>No tags yet.</p>}</> : <p>No videos selected.</p>}</section>
-        <section className="management__catalog" aria-labelledby="tags-title"><h2 id="tags-title"><Tags size={18} /> Tag catalog</h2><form onSubmit={createTag}><label htmlFor="tag-name">New tag</label><div className="management__input-row"><input id="tag-name" value={newTag} maxLength={32} required onChange={(event) => setNewTag(event.target.value)} disabled={busy} /><button disabled={busy || !newTag.trim()} title="Create tag" aria-label="Create tag"><Plus size={18} /></button></div></form><ul>{tags.map((tag) => <li key={tag}><span>{tag}<small>{videos.filter((video) => video.tags.includes(tag)).length} videos</small></span><button type="button" title={`Delete tag ${tag}`} aria-label={`Delete tag ${tag}`} disabled={busy} onClick={() => setPendingDelete(tag)}><Trash2 size={17} /></button></li>)}</ul></section>
+        <section className="management__catalog" aria-labelledby="tags-title"><h2 id="tags-title"><Tags size={18} /> Tag catalog</h2><form onSubmit={createTag}><label htmlFor="tag-name">New tag</label><div className="management__input-row"><input id="tag-name" value={newTag} maxLength={32} required onChange={(event) => setNewTag(event.target.value)} disabled={busy} /><button disabled={busy || !newTag.trim()} title="Create tag" aria-label="Create tag"><Plus size={18} /></button></div></form><ul>{tags.map((tag) => <li key={tag}>{renamingTag === tag ? <form className="management__tag-rename" onSubmit={(event) => renameTag(event, tag)}><input aria-label={`Rename tag ${tag}`} value={renamedTag} maxLength={32} required autoFocus onChange={(event) => setRenamedTag(event.target.value)} disabled={busy} /><button type="submit" title="Save tag name" aria-label="Save tag name" disabled={busy || !renamedTag.trim()}><Check size={17} /></button><button type="button" title="Cancel rename" aria-label="Cancel rename" disabled={busy} onClick={() => { setRenamingTag(null); setRenamedTag('') }}><X size={17} /></button></form> : <><span>{tag}<small>{videos.filter((video) => video.tags.includes(tag)).length} videos</small></span><div className="management__catalog-actions"><button type="button" title={`Rename tag ${tag}`} aria-label={`Rename tag ${tag}`} disabled={busy} onClick={() => { setRenamingTag(tag); setRenamedTag(tag) }}><Pencil size={16} /></button><button type="button" title={`Delete tag ${tag}`} aria-label={`Delete tag ${tag}`} disabled={busy} onClick={() => setPendingDelete({ kind: 'tag', tag })}><Trash2 size={17} /></button></div></>}</li>)}</ul></section>
       </div>
     </main>}
     {pendingDelete && <div className="management__backdrop"><section role="dialog" aria-modal="true" aria-labelledby="delete-title" onKeyDown={(event) => {
@@ -189,6 +201,6 @@ export default function Management() {
         const edge = event.shiftKey ? buttons[0] : buttons.at(-1)
         if (document.activeElement === edge) { event.preventDefault(); next?.focus() }
       }
-    }}><h2 id="delete-title">Delete tag "{pendingDelete}"?</h2><p>This removes the tag from all videos. Video files are kept.</p><div className="management__dialog-actions"><button ref={cancelRef} disabled={busy} onClick={() => setPendingDelete(null)}>Cancel</button><button className="is-destructive" disabled={busy} onClick={() => void perform(async () => { await request('tags', mutation('DELETE', { name: pendingDelete })); setPendingDelete(null) })}><Trash2 size={17} /> Delete tag</button></div></section></div>}
+    }}>{pendingDelete.kind === 'tag' ? <><h2 id="delete-title">Delete tag "{pendingDelete.tag}"?</h2><p>This removes the tag from all videos. Video files are kept.</p><div className="management__dialog-actions"><button ref={cancelRef} disabled={busy} onClick={() => setPendingDelete(null)}>Cancel</button><button className="is-destructive" disabled={busy} onClick={() => void perform(async () => { await request('tags', mutation('DELETE', { name: pendingDelete.tag })); setPendingDelete(null) })}><Trash2 size={17} /> Delete tag</button></div></> : <><h2 id="delete-title">Delete {pendingDelete.videos.length === 1 ? 'video' : `${pendingDelete.videos.length} videos`}?</h2><p>This permanently removes {pendingDelete.videos.length === 1 ? `“${pendingDelete.videos[0].title}” and its video file` : 'the selected videos and their files'} from the library.</p><div className="management__dialog-actions"><button ref={cancelRef} disabled={busy} onClick={() => setPendingDelete(null)}>Cancel</button><button className="is-destructive" disabled={busy} onClick={() => void perform(async () => { await request('videos', mutation('DELETE', { videoIds: pendingDelete.videos.map((video) => video.id) })); setPendingDelete(null) }, 'Selected videos deleted.')}><Trash2 size={17} /> Delete {pendingDelete.videos.length === 1 ? 'video' : 'videos'}</button></div></>}</section></div>}
   </div></RemoteNavigationProvider>
 }

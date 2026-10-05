@@ -101,7 +101,7 @@ platforms and custom layouts.
 
 ## Management And Production
 
-The TV jukebox provides playback and tag filters only. Open `/manage` on the root kiosk server from a laptop or phone to queue YouTube links, view download status, create or delete tags, and assign tags to videos. There is no YouTube search. The shared on-screen keyboard remains available but is unused.
+The TV jukebox provides playback and tag filters only. Open `/manage` on the root kiosk server from a laptop or phone to queue YouTube links, view download status, create, rename, or delete tags, assign tags to videos, and delete selected videos with their stored media. There is no YouTube search. The shared on-screen keyboard remains available but is unused.
 
 Click a video row to select just that video. Shift-click another row to select
 the visible range between them. Clicking elsewhere in the page clears the row

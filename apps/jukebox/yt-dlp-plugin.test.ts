@@ -98,6 +98,48 @@ test('bulk video tags preserve unrelated tags and reject invalid updates atomica
   assert.deepEqual((await readLibrary())[0].tags, ['Rock'])
 })
 
+test('renaming a tag updates video assignments and rejects duplicate names', async (t) => {
+  const library = [
+    { id: 'first', title: 'First', artist: 'Artist', duration: '1:00', filename: 'first.mp4', tags: ['Favorites', 'Rock'] },
+    { id: 'second', title: 'Second', artist: 'Artist', duration: '1:00', filename: 'second.mp4', tags: ['Favorites'] },
+  ]
+  const { root, baseUrl } = await createHarness(t, { library, tags: ['Favorites', 'Rock'] })
+  const rename = (name: string, newName: string) => fetch(`${baseUrl}/apps/jukebox/api/tags`, {
+    method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, newName }),
+  })
+  const readLibrary = async () => JSON.parse(await readFile(join(root, 'data', 'library.json'), 'utf8'))
+  assert.equal((await rename('Favorites', 'Chill Mix')).status, 200)
+  assert.deepEqual(JSON.parse(await readFile(join(root, 'data', 'tags.json'), 'utf8')), ['Chill Mix', 'Rock'])
+  assert.deepEqual((await readLibrary()).map((video: { tags: string[] }) => video.tags), [['Chill Mix', 'Rock'], ['Chill Mix']])
+  const unchanged = await readLibrary()
+  assert.equal((await rename('Chill Mix', 'Rock')).status, 409)
+  assert.deepEqual(await readLibrary(), unchanged)
+  assert.equal((await rename('Missing', 'New')).status, 404)
+})
+
+test('deleting videos removes library entries and their unshared media files', async (t) => {
+  const library = [
+    { id: 'first', title: 'First', artist: 'Artist', duration: '1:00', filename: 'first.mp4', thumbnailFilename: 'first.jpg', tags: [] },
+    { id: 'second', title: 'Second', artist: 'Artist', duration: '1:00', filename: 'second.mp4', thumbnailFilename: 'second.jpg', tags: [] },
+  ]
+  const { root, baseUrl } = await createHarness(t, { library })
+  for (const filename of ['first.mp4', 'first.jpg', 'second.mp4', 'second.jpg']) {
+    await writeFile(join(root, 'public', 'videos', filename), 'fixture')
+  }
+  const remove = (videoIds: string[]) => fetch(`${baseUrl}/apps/jukebox/api/videos`, {
+    method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ videoIds }),
+  })
+  const readLibrary = async () => JSON.parse(await readFile(join(root, 'data', 'library.json'), 'utf8'))
+  assert.equal((await remove(['first', 'missing'])).status, 404)
+  assert.equal((await readLibrary()).length, 2)
+  assert.deepEqual(await readdir(join(root, 'public', 'videos')), ['first.jpg', 'first.mp4', 'second.jpg', 'second.mp4'])
+  const response = await remove(['first'])
+  assert.equal(response.status, 200)
+  assert.deepEqual(await response.json(), { deleted: 1 })
+  assert.deepEqual((await readLibrary()).map((video: { id: string }) => video.id), ['second'])
+  assert.deepEqual(await readdir(join(root, 'public', 'videos')), ['second.jpg', 'second.mp4'])
+})
+
 function makeFakeSpawn(root: string, calls: Array<{ command: string; args: string[] }>, options: {
   artwork?: 'success' | 'fail'
   ffmpegThumbnail?: 'success' | 'fail'
