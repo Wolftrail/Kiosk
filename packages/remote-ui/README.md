@@ -71,7 +71,7 @@ Import `@kiosk/remote-ui/typography.css` only when you want the font declaration
 and tokens without the other shell styles. Normal apps already receive these
 through `@kiosk/remote-ui/styles.css`; do not import both.
 
-See the [Commonroom style guide](../../STYLEGUIDE.md) for the TV/management split,
+See the [Kiosk style guide](../../STYLEGUIDE.md) for the TV/management split,
 type scale, spacing/target tokens, focus behavior, and validation requirements.
 
 For custom layouts, the unstyled controls are also available independently.

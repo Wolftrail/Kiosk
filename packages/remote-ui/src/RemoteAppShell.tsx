@@ -55,7 +55,7 @@ export function RemoteAppShell({
         </main>
 
         <footer className="remote-app-shell__footer">
-          <span>COMMONROOM KIOSK</span>
+          <span>KIOSK</span>
           <span>{category}</span>
         </footer>
       </div>

@@ -15,13 +15,11 @@
 .kiosk-header { display: flex; flex: 0 0 64px; align-items: center; justify-content: space-between; gap: 24px; }
 .kiosk-brand { display: inline-flex; align-items: center; gap: 14px; color: #f5f7f5; font-size: 18px; font-weight: 700; text-decoration: none; }
 .kiosk-brand__mark { display: grid; width: 48px; height: 48px; flex: 0 0 auto; place-items: center; border-radius: 8px; color: #171d1a; background: #d4fa68; font-family: var(--kiosk-font-ui); font-size: 30px; font-weight: 400; }
-.kiosk-brand__subtitle { display: block; margin-top: 4px; color: #b3bab6; font-size: 11px; font-weight: 400; }
 .kiosk-datetime { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 .kiosk-time { color: #f5f7f5; font-size: 28px; font-variant-numeric: tabular-nums; }
 .kiosk-date { color: #b3bab6; font-size: 14px; }
 .kiosk-main { display: flex; flex: 1 1 0; min-height: 0; flex-direction: column; padding: 30px 0 28px; gap: 30px; }
 .home-intro { flex: 0 0 auto; animation: settle-in 400ms ease both; }
-.home-intro__eyebrow { margin: 0 0 12px; color: #d4fa68; font-size: 13px; font-weight: 700; }
 .home-intro h1 { margin: 0; color: #f5f7f5; font-family: var(--kiosk-font-ui); font-size: 48px; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
 .app-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); gap: 22px; flex: 1 1 0; min-height: 0; }
 .app-tile {

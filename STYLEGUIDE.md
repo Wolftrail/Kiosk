@@ -1,4 +1,4 @@
-# Commonroom Style Guide
+# Kiosk Style Guide
 
 Keep the kiosk and apps recognizably related without making every screen identical.
 Shared conventions live in `@kiosk/remote-ui`; app themes, artwork, and domain layouts

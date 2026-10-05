@@ -90,7 +90,7 @@ function Home() {
       <header className="kiosk-header">
         <RemoteLink className="kiosk-brand" href="#home" aria-label="Kiosk home">
           <span className="kiosk-brand__mark">K</span>
-          <span>COMMONROOM<span className="kiosk-brand__subtitle">KIOSK</span></span>
+          <span>KIOSK</span>
         </RemoteLink>
         <div className="kiosk-datetime">
           <time className="kiosk-time">{clock}</time>
@@ -100,7 +100,6 @@ function Home() {
 
       <main className="kiosk-main" id="home">
         <section className="home-intro" aria-labelledby="home-title">
-          <p className="home-intro__eyebrow">YOUR COMMONROOM</p>
           <h1 id="home-title">Make yourself at home.</h1>
         </section>
 

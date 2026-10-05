@@ -1,4 +1,4 @@
-# Commonroom Kiosk
+# Kiosk
 
 A React and TypeScript launcher for a workspace of focused, independently built apps.
 
@@ -151,7 +151,7 @@ Use `RemoteAppShell` from `@kiosk/remote-ui` for a full-viewport app frame with 
 
 The shared stylesheet also bundles the default Noto Sans UI font, Noto Serif
 reading font, Thai fallback, and lightweight design tokens. Follow the
-[Commonroom style guide](STYLEGUIDE.md) for typography, TV layouts, remote focus,
+[Kiosk style guide](STYLEGUIDE.md) for typography, TV layouts, remote focus,
 and the separate management-screen conventions.
 
 ## Add an app
