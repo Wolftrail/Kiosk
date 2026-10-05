@@ -19,7 +19,7 @@ type LibraryVideo = {
   audioNormalization?: 'ebu-r128-v1'
 }
 
-type RequestBody = { url?: unknown; query?: unknown; name?: unknown; videoId?: unknown; tags?: unknown }
+type RequestBody = { url?: unknown; query?: unknown; name?: unknown; videoId?: unknown; tags?: unknown; videoIds?: unknown; tag?: unknown; assigned?: unknown }
 type DownloadResolution = { video: LibraryVideo; alreadyExists: boolean }
 type DownloadJob = {
   id: string
@@ -74,6 +74,15 @@ function pruneFinishedJobs() {
   for (const job of finished.slice(0, Math.max(0, finished.length - 100))) downloadJobs.delete(job.id)
 }
 
+function listDownloadJobs() {
+  const queuedIds = new Set(downloadQueue)
+  const queuedJobs = downloadQueue.flatMap((id) => {
+    const job = downloadJobs.get(id)
+    return job ? [job] : []
+  })
+  return [...queuedJobs, ...[...downloadJobs.values()].filter((job) => !queuedIds.has(job.id))]
+}
+
 async function processDownloadQueue() {
   if (processingDownloadQueue) return
   processingDownloadQueue = true
@@ -105,7 +114,31 @@ async function processDownloadQueue() {
 function enqueueDownload(url: string) {
   const videoId = new URL(url).searchParams.get('v')!
   const activeId = activeDownloadJobs.get(videoId)
-  if (activeId) return downloadJobs.get(activeId)!
+  if (activeId) {
+    const activeJob = downloadJobs.get(activeId)!
+    if (activeJob.status === 'queued') {
+      const queueIndex = downloadQueue.indexOf(activeId)
+      if (queueIndex > 0) {
+        downloadQueue.splice(queueIndex, 1)
+        downloadQueue.unshift(activeId)
+      }
+    }
+    return activeJob
+  }
+  const failedJob = [...downloadJobs.values()].reverse().find((job) =>
+    job.status === 'failed' && new URL(job.url).searchParams.get('v') === videoId
+  )
+  if (failedJob) {
+    if (downloadQueue.length >= 100) throw new Error('The download queue is full. Try again later.')
+    failedJob.status = 'queued'
+    delete failedJob.error
+    delete failedJob.video
+    delete failedJob.alreadyExists
+    activeDownloadJobs.set(videoId, failedJob.id)
+    downloadQueue.unshift(failedJob.id)
+    setImmediate(() => void processDownloadQueue())
+    return failedJob
+  }
   if (downloadQueue.length >= 100) throw new Error('The download queue is full. Try again later.')
   const job: DownloadJob = { id: randomUUID(), url, status: 'queued' }
   downloadJobs.set(job.id, job)
@@ -612,7 +645,7 @@ export function handleApiRequest(request: IncomingMessage, response: ServerRespo
   }
 
   if (pathname === `${apiPrefix}downloads` && request.method === 'GET') {
-    sendJson(response, 200, { jobs: [...downloadJobs.values()].map((job) => ({ ...job })) })
+    sendJson(response, 200, { jobs: listDownloadJobs().map((job) => ({ ...job })) })
     return
   }
 

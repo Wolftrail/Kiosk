@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Clock, Download, Film, LoaderCircle, Plus, RefreshCw, Tags, Trash2 } from 'lucide-react'
+import { Clock, Download, Film, LoaderCircle, Plus, RefreshCw, Rows3, Tags, Trash2, X } from 'lucide-react'
 import { RemoteNavigationProvider, useToast } from '@kiosk/remote-ui'
 import Schedules from './Schedules'
 import './Management.css'
@@ -25,7 +25,7 @@ export default function Management() {
   const [videos, setVideos] = useState<Video[]>([])
   const [tags, setTags] = useState<string[]>([])
   const [jobs, setJobs] = useState<Job[]>([])
-  const [selectedId, setSelectedId] = useState('')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [url, setUrl] = useState('')
   const [newTag, setNewTag] = useState('')
   const [filter, setFilter] = useState('')
@@ -34,13 +34,29 @@ export default function Management() {
   const [busy, setBusy] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
-  const selected = videos.find((video) => video.id === selectedId)
+  const selectionAnchor = useRef<string | null>(null)
+  const selectedVideos = videos.filter((video) => selectedIds.includes(video.id))
   const visibleJobs = jobs.filter((job) => job.status !== 'completed')
   const activeTagFilter = tagFilter === 'untagged' || tags.some((tag) => `tag:${tag}` === tagFilter) ? tagFilter : ''
   const visibleVideos = videos.filter((video) =>
     `${video.title} ${video.artist}`.toLocaleLowerCase().includes(filter.toLocaleLowerCase()) &&
     (!activeTagFilter || (activeTagFilter === 'untagged' ? video.tags.length === 0 : video.tags.includes(activeTagFilter.slice(4))))
   ).reverse()
+  const visibleSelectedCount = visibleVideos.filter((video) => selectedIds.includes(video.id)).length
+  const allVisibleSelected = visibleVideos.length > 0 && visibleSelectedCount === visibleVideos.length
+
+  function selectVideo(id: string, range: boolean) {
+    if (busy) return
+    const anchorIndex = visibleVideos.findIndex((video) => video.id === selectionAnchor.current)
+    const clickedIndex = visibleVideos.findIndex((video) => video.id === id)
+    if (range && anchorIndex !== -1) {
+      const rangeIds = visibleVideos.slice(Math.min(anchorIndex, clickedIndex), Math.max(anchorIndex, clickedIndex) + 1).map((video) => video.id)
+      setSelectedIds(rangeIds)
+    } else {
+      selectionAnchor.current = id
+      setSelectedIds([id])
+    }
+  }
 
   useEffect(() => {
     if (!pendingDelete) return
@@ -49,12 +65,23 @@ export default function Management() {
     return () => { if (previousFocus?.isConnected) previousFocus.focus() }
   }, [pendingDelete])
 
+  useEffect(() => {
+    if (selectedIds.length === 0) return
+    const clearOnOutsideClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element) || event.target.closest('.management__video, .management__selection, .management__assignment label, .management__assignment input')) return
+      selectionAnchor.current = null
+      setSelectedIds([])
+    }
+    document.addEventListener('click', clearOnOutsideClick)
+    return () => document.removeEventListener('click', clearOnOutsideClick)
+  }, [selectedIds.length])
+
   async function refresh() {
     const [library, downloads] = await Promise.all([request('videos'), request('downloads')])
     setVideos(library.videos)
     setTags(library.tags)
     setJobs(downloads.jobs)
-    setSelectedId((current) => library.videos.some((video: Video) => video.id === current) ? current : library.videos[0]?.id ?? '')
+    setSelectedIds((current) => current.filter((id) => library.videos.some((video: Video) => video.id === id)))
   }
 
   useEffect(() => {
@@ -70,7 +97,7 @@ export default function Management() {
         setTags(library.tags)
         setJobs(downloads.jobs)
         setNotice('')
-        setSelectedId((current) => library.videos.some((video: Video) => video.id === current) ? current : library.videos[0]?.id ?? '')
+        setSelectedIds((current) => current.filter((id) => library.videos.some((video: Video) => video.id === id)))
       } catch (error) {
         if (active) setNotice(error instanceof Error ? error.message : 'Cannot connect to kiosk.')
       } finally { running = false }
@@ -132,11 +159,25 @@ export default function Management() {
         </div>
       </section>
       <div className="management__workspace">
-        <section className="management__videos" aria-labelledby="videos-title"><h2 id="videos-title"><Film size={18} /> Videos</h2><div className="management__filters"><label className="management__filter">Filter library<input type="search" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Title or artist" /></label><div className="management__filter"><label htmlFor="video-tag-filter">Tag</label><select id="video-tag-filter" value={activeTagFilter} onChange={(event) => setTagFilter(event.target.value)}><option value="">All tags</option><option value="untagged">Untagged</option>{tags.map((tag) => <option key={tag} value={`tag:${tag}`}>{tag}</option>)}</select></div></div><div className="management__video-list">
-          {visibleVideos.map((video) => <button type="button" className={`management__video ${selectedId === video.id ? 'is-selected' : ''}`} key={video.id} aria-pressed={selectedId === video.id} onClick={() => setSelectedId(video.id)}>{video.thumbnailUrl ? <img src={video.thumbnailUrl} alt="" loading="lazy" /> : <Film size={30} />}<span>{video.title}<small>{video.artist}</small><small className="management__video-tags"><Tags size={13} aria-hidden="true" /><span>{video.tags.join(' / ') || 'Untagged'}</span></small></span><small>{video.duration}</small></button>)}
+        <section className="management__videos" aria-labelledby="videos-title"><h2 id="videos-title"><Film size={18} /> Videos</h2><div className="management__filters"><label className="management__filter">Filter library<input type="search" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Title or artist" /></label><div className="management__filter"><label htmlFor="video-tag-filter">Tag</label><select id="video-tag-filter" value={activeTagFilter} onChange={(event) => setTagFilter(event.target.value)}><option value="">All tags</option><option value="untagged">Untagged</option>{tags.map((tag) => <option key={tag} value={`tag:${tag}`}>{tag}</option>)}</select></div></div>
+        <div className="management__selection">
+          <button type="button" disabled={busy || visibleVideos.length === 0 || allVisibleSelected} onClick={() => {
+            selectionAnchor.current = visibleVideos[0].id
+            setSelectedIds((current) => [...new Set([...current, ...visibleVideos.map((video) => video.id)])])
+          }}><Rows3 size={17} />Select visible</button>
+          <span role="status">{selectedVideos.length} selected{selectedVideos.length > visibleSelectedCount ? ` (${selectedVideos.length - visibleSelectedCount} hidden)` : ''}</span>
+          <button type="button" title="Clear selection" aria-label="Clear selection" disabled={busy || selectedVideos.length === 0} onClick={() => { selectionAnchor.current = null; setSelectedIds([]) }}><X size={17} /></button>
+        </div><div className="management__video-list">
+          {visibleVideos.map((video) => <button type="button" className={`management__video ${selectedIds.includes(video.id) ? 'is-selected' : ''}`} key={video.id} aria-pressed={selectedIds.includes(video.id)} disabled={busy} onClick={(event) => selectVideo(video.id, event.shiftKey)}>{video.thumbnailUrl ? <img src={video.thumbnailUrl} alt="" loading="lazy" /> : <Film size={30} />}<span>{video.title}<small>{video.artist}</small><small className="management__video-tags"><Tags size={13} aria-hidden="true" /><span>{video.tags.join(' / ') || 'Untagged'}</span></small></span><small>{video.duration}</small></button>)}
           {visibleVideos.length === 0 && <p>{videos.length === 0 ? 'No videos yet.' : 'No videos match these filters.'}</p>}
         </div></section>
-        <section className="management__assignment" aria-labelledby="assignment-title"><h2 id="assignment-title">Video tags</h2>{selected ? <><h3>{selected.title}</h3><p>{selected.artist}</p><div className="management__checks">{tags.map((tag) => <label key={tag}><input type="checkbox" checked={selected.tags.includes(tag)} disabled={busy} onChange={(event) => { const nextTags = event.target.checked ? [...selected.tags, tag] : selected.tags.filter((item) => item !== tag); void perform(async () => { await request('video-tags', mutation('POST', { videoId: selected.id, tags: nextTags })) }) }} />{tag}</label>)}</div>{tags.length === 0 && <p>No tags yet.</p>}</> : <p>No video selected.</p>}</section>
+        <section className="management__assignment" aria-labelledby="assignment-title"><h2 id="assignment-title">Video tags</h2>{selectedVideos.length > 0 ? <><h3>{selectedVideos.length === 1 ? selectedVideos[0].title : `${selectedVideos.length} videos selected`}</h3>{selectedVideos.length === 1 && <p>{selectedVideos[0].artist}</p>}<div className="management__checks">{tags.map((tag) => {
+          const taggedCount = selectedVideos.filter((video) => video.tags.includes(tag)).length
+          return <label key={tag}><input type="checkbox" checked={taggedCount === selectedVideos.length} ref={(input) => { if (input) input.indeterminate = taggedCount > 0 && taggedCount < selectedVideos.length }} disabled={busy} onChange={(event) => {
+            const assigned = event.target.checked
+            void perform(async () => { await request('video-tags', mutation('POST', { videoIds: selectedVideos.map((video) => video.id), tag, assigned })) }, `Tag ${assigned ? 'added to' : 'removed from'} ${selectedVideos.length} ${selectedVideos.length === 1 ? 'video' : 'videos'}.`)
+          }} />{tag}</label>
+        })}</div>{tags.length === 0 && <p>No tags yet.</p>}</> : <p>No videos selected.</p>}</section>
         <section className="management__catalog" aria-labelledby="tags-title"><h2 id="tags-title"><Tags size={18} /> Tag catalog</h2><form onSubmit={createTag}><label htmlFor="tag-name">New tag</label><div className="management__input-row"><input id="tag-name" value={newTag} maxLength={32} required onChange={(event) => setNewTag(event.target.value)} disabled={busy} /><button disabled={busy || !newTag.trim()} title="Create tag" aria-label="Create tag"><Plus size={18} /></button></div></form><ul>{tags.map((tag) => <li key={tag}><span>{tag}<small>{videos.filter((video) => video.tags.includes(tag)).length} videos</small></span><button type="button" title={`Delete tag ${tag}`} aria-label={`Delete tag ${tag}`} disabled={busy} onClick={() => setPendingDelete(tag)}><Trash2 size={17} /></button></li>)}</ul></section>
       </div>
     </main>}

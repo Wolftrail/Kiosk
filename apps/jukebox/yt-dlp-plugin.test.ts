@@ -465,7 +465,7 @@ test('yt-dlp plugin middleware regressions', async (t) => {
     let release!: () => void
     options.downloadGate = new Promise<void>((resolvePromise) => { release = resolvePromise })
     try {
-      const active = (await (await postQueuedDownload(baseUrl)).json()).job
+      const active = (await (await postQueuedDownload(baseUrl, 'https://youtu.be/RtYuIo12345')).json()).job
       const queued = (await (await postQueuedDownload(baseUrl, 'https://youtu.be/QwErTy12345')).json()).job
       for (let attempt = 0; attempt < 50; attempt += 1) {
         jobs = await readJobs()
@@ -677,6 +677,33 @@ test('yt-dlp plugin middleware regressions', async (t) => {
     assert.equal(jobs[0].video?.title, 'Fixture song')
   })
 
+  await t.test('moves an existing queued URL to the front of the queue and list', async (t) => {
+    let releaseDownload!: () => void
+    const downloadGate = new Promise<void>((resolve) => { releaseDownload = resolve })
+    const { baseUrl } = await createHarness(t, { downloadGate })
+    try {
+      const active = (await (await postQueuedDownload(baseUrl)).json()).job
+      let jobs: Array<{ id: string; status: string }> = []
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        jobs = (await (await fetch(`${baseUrl}/apps/jukebox/api/downloads`)).json()).jobs
+        if (jobs.find((job) => job.id === active.id)?.status === 'downloading') break
+        await new Promise((resolvePromise) => setTimeout(resolvePromise, 10))
+      }
+      assert.equal(jobs.find((job) => job.id === active.id)?.status, 'downloading')
+
+      const later = (await (await postQueuedDownload(baseUrl, 'https://youtu.be/QwErTy12345')).json()).job
+      const priority = (await (await postQueuedDownload(baseUrl, 'https://youtu.be/ZxCvBn12345')).json()).job
+      const repeated = (await (await postQueuedDownload(baseUrl, 'https://youtu.be/ZxCvBn12345')).json()).job
+      assert.equal(repeated.id, priority.id)
+      assert.equal(repeated.status, 'queued')
+
+      jobs = (await (await fetch(`${baseUrl}/apps/jukebox/api/downloads`)).json()).jobs
+      assert.deepEqual(jobs.slice(0, 3).map((job) => job.id), [priority.id, later.id, active.id])
+    } finally {
+      releaseDownload()
+    }
+  })
+
   await t.test('rejects invalid queued URLs and reports background failures', async (t) => {
     const { baseUrl } = await createHarness(t, { download: 'fail' })
     const invalid = await postQueuedDownload(baseUrl, 'http://youtube.com/watch?v=bad')
@@ -695,6 +722,19 @@ test('yt-dlp plugin middleware regressions', async (t) => {
     }
     assert.equal(result.status, 'failed')
     assert.match(result.error, /download fixture failed/)
+
+    const retryResponse = await postQueuedDownload(baseUrl)
+    assert.equal(retryResponse.status, 202)
+    const retry = (await retryResponse.json()).job
+    assert.equal(retry.id, job.id)
+    assert.equal(retry.status, 'queued')
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      const response = await fetch(`${baseUrl}/apps/jukebox/api/downloads`)
+      result = (await response.json()).jobs.find((item: { id: string }) => item.id === job.id)
+      if (result?.status === 'failed') break
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 10))
+    }
+    assert.equal(result.status, 'failed')
   })
 
   await t.test('requires configured Basic auth and blocks foreign-origin mutations', async (t) => {

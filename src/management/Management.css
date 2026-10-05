@@ -65,8 +65,12 @@
 .management__filters { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); flex-shrink: 0; gap: 12px; margin-bottom: 14px; }
 .management__filter { display: grid; min-width: 0; gap: 7px; }
 .management__video-list { display: grid; grid-auto-rows: max-content; align-content: start; max-height: 55dvh; gap: 0; overflow-y: auto; }
-.management button.management__video { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 12px; padding: 12px 6px; border: 0; border-bottom: 1px solid #d8e0dc; border-radius: 0; text-align: left; background: transparent; }
-.management button.management__video.is-selected { background: #dcebe5; box-shadow: inset 3px 0 var(--manage-accent); }
+.management__selection { display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; gap: 8px 12px; margin-bottom: 8px; }
+.management__selection > span { flex: 1; color: #62736b; }
+.management .management__video { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 6px; border: 0; border-bottom: 1px solid #d8e0dc; border-radius: 0; text-align: left; background: transparent; user-select: none; }
+.management .management__video:hover { background: #e7eeeb; }
+.management .management__video.is-selected { background: #dcebe5; box-shadow: inset 3px 0 var(--manage-accent); }
+.management__video:focus-within { outline: 3px solid #278c7a; outline-offset: -3px; }
 .management__video img { width: 96px; height: 54px; object-fit: cover; }
 .management__video span { overflow-wrap: anywhere; font-weight: 700; }
 .management small { display: block; margin-top: 5px; color: #62736b; font-size: 12px; font-weight: 400; }
@@ -103,3 +107,4 @@
 @media (max-width: 1000px) { .management__workspace { grid-template-columns: minmax(0, 1.4fr) minmax(220px, 1fr); } .management__catalog { grid-column: 1 / -1; padding: 20px 0 0; border-left: 0; border-top: 1px solid #d8e0dc; } }
 @media (max-width: 600px) { .management main { padding: 20px 16px; } .management__header { padding: 16px; gap: 12px; } .management__workspace { grid-template-columns: minmax(0, 1fr); } .management__assignment { padding: 20px 0 0; border-left: 0; border-top: 1px solid #d8e0dc; } .management__input-row { flex-wrap: wrap; } .management__input-row input { flex: 1 1 180px; } }
 @media (max-width: 800px) { .management__downloads { grid-template-columns: minmax(0, 1fr); gap: 20px; } .management__download-manager { padding: 20px 0 0; border-left: 0; border-top: 1px solid #d8e0dc; } }
+@media (max-width: 600px) { .management .management__video { grid-template-columns: 64px minmax(0, 1fr) auto; gap: 8px; } .management__video img { width: 64px; height: 36px; } }
