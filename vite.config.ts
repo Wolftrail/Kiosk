@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react'
 import { protectManagementAccess } from './apps/jukebox/yt-dlp-plugin.ts'
+import { handleScheduleRequest } from './schedule-api.ts'
 import { defineConfig, type Plugin } from 'vite'
 
 const managementAccessPlugin: Plugin = {
@@ -7,7 +8,10 @@ const managementAccessPlugin: Plugin = {
   configureServer(server) {
     server.middlewares.use((request, response, next) => {
       const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
-      if (pathname === '/manage' || pathname.startsWith('/manage/')) {
+      if (pathname === '/api/schedules') {
+        if (request.method === 'GET') void handleScheduleRequest(request, response)
+        else protectManagementAccess(request, response, () => void handleScheduleRequest(request, response), true)
+      } else if (pathname === '/manage' || pathname.startsWith('/manage/')) {
         protectManagementAccess(request, response, next, true)
       } else if (pathname.startsWith('/apps/jukebox/api/')) {
         protectManagementAccess(request, response, next)

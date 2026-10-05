@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { Pause, Play, Radio, SkipBack, SkipForward, SlidersHorizontal, Tags, X } from 'lucide-react'
-import { RemoteAppShell, RemoteButton } from '@kiosk/remote-ui'
+import { consumeScheduledReturn, isScheduledReturn, RemoteAppShell, RemoteButton, scheduledLaunchEvent, useToast } from '@kiosk/remote-ui'
 import { jukeboxSessionKey, parseSession, restoreQueue, type TagFilterMode } from './session'
 import './App.css'
 
@@ -37,6 +37,13 @@ function shuffleTracks(trackIds: string[]) {
 }
 
 function App() {
+  const { toast } = useToast()
+  const [resumeAfterSchedule] = useState(() => {
+    try {
+      return isScheduledReturn() && sessionStorage.getItem('kiosk.jukebox.scheduled-playing') === 'true'
+    } catch { return false }
+  })
+  const resumeAfterScheduleRef = useRef(resumeAfterSchedule)
   const [savedSession] = useState(() => {
     try {
       return parseSession(window.sessionStorage.getItem(jukeboxSessionKey))
@@ -179,14 +186,26 @@ function App() {
   }, [tagFilters, showTagFilters, selectedTrackId, hasLoadedLibrary, eligibleTrackIds])
 
   useEffect(() => {
+    try {
+      if (consumeScheduledReturn()) sessionStorage.removeItem('kiosk.jukebox.scheduled-playing')
+    } catch {
+    }
     const handlePageHide = () => persistSession(true)
+    const handleScheduledLaunch = () => {
+      const video = videoRef.current
+      sessionStorage.setItem('kiosk.jukebox.scheduled-playing', String(Boolean(video && !video.paused && !video.ended)))
+      persistSession(true)
+      video?.pause()
+    }
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') persistSession(true)
     }
     window.addEventListener('pagehide', handlePageHide)
+    window.addEventListener(scheduledLaunchEvent, handleScheduledLaunch)
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
       window.removeEventListener('pagehide', handlePageHide)
+      window.removeEventListener(scheduledLaunchEvent, handleScheduledLaunch)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [])
@@ -202,6 +221,15 @@ function App() {
     video.currentTime = Number.isFinite(video.duration)
       ? Math.min(savedSession.playbackTime, Math.max(0, video.duration - 0.1))
       : savedSession.playbackTime
+    if (resumeAfterScheduleRef.current) {
+      resumeAfterScheduleRef.current = false
+      consumeScheduledReturn()
+      sessionStorage.removeItem('kiosk.jukebox.scheduled-playing')
+      void video.play().catch(() => {
+        setIsPlaying(false)
+        toast('Press Play to resume your music.', { variant: 'info' })
+      })
+    }
   }
 
   const handlePlaybackProgress = () => saveSession(true)

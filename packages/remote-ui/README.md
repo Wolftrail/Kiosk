@@ -19,6 +19,41 @@ import { RemoteAppShell } from '@kiosk/remote-ui'
 
 Available themes are `jukebox`, `workout`, `scripture`, and `recite`. The shell provides the full-viewport layout, common header and footer, Back navigation, initial focus, and D-pad movement. Its children remain app-specific.
 
+## Scheduled App Lifecycle
+
+`RemoteNavigationProvider` (also used by `RemoteAppShell`) owns schedule reminders
+and return navigation. Apps may independently opt into startup and completion
+handling; neither hook is required. Without either hook an app opens normally and
+stays open until the user leaves. Further reminders detected during a scheduled visit
+or an open dialog are persisted and delivered one at a time afterward, with a fixed
+expiry at the next local midnight. Explicit ten-minute snoozes can cross midnight.
+Disabled or deleted schedules lose their pending reminders.
+
+```tsx
+import { useState } from 'react'
+import { getScheduledLaunch, finishScheduledApp } from '@kiosk/remote-ui'
+
+const [launch] = useState(() => getScheduledLaunch('scripture'))
+
+function completeReading() {
+  saveReadingProgress()
+  finishScheduledApp('scripture')
+}
+```
+
+`getScheduledLaunch(appId)` returns context only for that app's active scheduled
+visit; use it to choose initial app state. `finishScheduledApp(appId)` is a completion
+notification, not a navigation helper. It returns false for a normal visit. For a
+scheduled visit it emits `kiosk:scheduled-completion`; the shared scheduler consumes
+the notification, clears launch state, records the return marker, and navigates to
+the interrupted page. Save essential progress before notifying, because navigation
+can unload the page before React persistence effects run. Apps decide any completion
+screen delay before notifying. Browser navigation away clears abandoned context.
+
+Returning apps can use `isScheduledReturn()` and `consumeScheduledReturn()` to
+restore activity. Jukebox uses these to resume only music that was playing before
+the interruption, with an ordinary Play action if autoplay is blocked.
+
 ## Typography And Style
 
 The shared stylesheet bundles Noto Sans for UI text, Noto Serif for reading
@@ -59,6 +94,16 @@ import { RemoteButton, RemoteLink, RemoteNavigationProvider } from '@kiosk/remot
 The provider moves focus spatially with arrow keys. Enter and Space retain native button/link activation. It handles Escape, Backspace, GoBack, and BrowserBack only when `onBack` reports that it handled the action. It scopes arrow movement to an open `[role="dialog"]` when one exists.
 
 `RemoteButton` and `RemoteLink` render native controls with a `data-remote-focus` marker. They do not add visual styles; each app owns its layout, colors, and `:focus-visible` treatment.
+
+## Shared Dialogs
+
+`ConfirmationDialog` provides modal framing, initial cancel focus, background inertness,
+focus restoration, Tab trapping, and Back dismissal. It supports the usual confirm/cancel
+pair plus an optional `secondaryAction` with `label`, `icon`, and `onClick`. Optional
+`context` and `icon` props provide a compact header; `confirmIcon` and `cancelIcon` add
+action icons. The scheduler uses this same component for No, Snooze, and Yes rather
+than maintaining a separate dialog. `className` allows a surface-specific layout while
+keeping shared modal behavior.
 
 ## Toasts
 

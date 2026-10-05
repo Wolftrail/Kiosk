@@ -1,15 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { ConfirmationDialog, RemoteAppShell, RemoteButton } from '@kiosk/remote-ui'
+import { ConfirmationDialog, finishScheduledApp, getScheduledLaunch, RemoteAppShell, RemoteButton } from '@kiosk/remote-ui'
 import { Activity, Check, Clock3, Pause, Play, RotateCcw, Square, Timer, Volume2, VolumeX } from 'lucide-react'
 import { exercises, formatTime, getStage, TOTAL_SECONDS } from './routine'
 import './App.css'
 
 function App() {
-  const [status, setStatus] = useState<'idle' | 'running' | 'paused'>('idle')
+  const [{ scheduledLaunch, started }] = useState(() => ({ scheduledLaunch: getScheduledLaunch('workout'), started: performance.now() }))
+  const [status, setStatus] = useState<'idle' | 'running' | 'paused'>(scheduledLaunch ? 'running' : 'idle')
   const [elapsed, setElapsed] = useState(0)
   const [sound, setSound] = useState(true)
   const [exitOpen, setExitOpen] = useState(false)
-  const clock = useRef({ accumulated: 0, started: 0 })
+  const clock = useRef({ accumulated: 0, started })
   const primaryRef = useRef<HTMLButtonElement>(null)
   const audioRef = useRef<AudioContext | null>(null)
   const exitTarget = useRef<string | null>(null)
@@ -74,8 +75,15 @@ function App() {
     setStatus('idle')
     setElapsed(0)
     clock.current.accumulated = 0
+    if (finishScheduledApp('workout')) return
     if (exitTarget.current) window.location.assign(exitTarget.current)
   }
+
+  useEffect(() => {
+    if (!complete || !scheduledLaunch) return
+    const timer = window.setTimeout(() => finishScheduledApp('workout'), 5000)
+    return () => window.clearTimeout(timer)
+  }, [complete, scheduledLaunch])
 
   useEffect(() => {
     if (status !== 'running' || complete) return
@@ -118,11 +126,26 @@ function App() {
     oscillator.onended = () => { oscillator.disconnect(); gain.disconnect() }
   }, [signal, status, sound, complete, stage.kind])
 
-  useEffect(() => () => { void audioRef.current?.close() }, [])
+  useEffect(() => () => {
+    const audio = audioRef.current
+    audioRef.current = null
+    void audio?.close()
+  }, [])
+
+  useEffect(() => {
+    if (!scheduledLaunch) return
+    audioRef.current ??= new AudioContext()
+    void audioRef.current.resume().catch(() => {})
+  }, [scheduledLaunch])
 
   return (
     <div className="workout" data-status={complete ? 'complete' : status} onClickCapture={(event) => {
       const link = (event.target as HTMLElement).closest('a')
+      if (scheduledLaunch && !active && link) {
+        event.preventDefault()
+        finishScheduledApp('workout')
+        return
+      }
       if (active && link) {
         event.preventDefault()
         event.stopPropagation()
@@ -133,11 +156,12 @@ function App() {
       title="7-minute workout"
       category="FITNESS"
       theme="workout"
+      backHref={scheduledLaunch?.returnUrl ?? '/'}
       initialFocusSelector=".workout-primary"
       onBack={() => {
         if (exitOpen) cancelExit()
         else if (active) requestExit('/')
-        else window.location.assign('/')
+        else if (!finishScheduledApp('workout')) window.location.assign('/')
         return true
       }}
     >
@@ -178,8 +202,8 @@ function App() {
           <h2>Seven minutes.<br />Well spent.</h2>
           <p>12 exercises complete. Catch your breath, walk gently, and have some water.</p>
           <div className="workout-actions">
-            <RemoteButton ref={primaryRef} className="workout-button workout-primary" onClick={start}><RotateCcw /> Do it again</RemoteButton>
-            <RemoteButton className="workout-button workout-secondary" onClick={() => { setStatus('idle'); setElapsed(0) }}>Done</RemoteButton>
+            {!scheduledLaunch && <RemoteButton ref={primaryRef} className="workout-button workout-primary" onClick={start}><RotateCcw /> Do it again</RemoteButton>}
+            <RemoteButton ref={scheduledLaunch ? primaryRef : undefined} className="workout-button workout-secondary" onClick={() => { if (!finishScheduledApp('workout')) { setStatus('idle'); setElapsed(0) } }}>Done</RemoteButton>
           </div>
         </div>
       ) : (

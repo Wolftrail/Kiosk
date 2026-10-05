@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "test": "node --experimental-strip-types --test tests/keyboardLayouts.test.ts"
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
   },
   "exports": {
     ".": "./src/index.ts",

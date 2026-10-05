@@ -34,7 +34,46 @@ Without `KIOSK_ADMIN_PASSWORD`, management is available only from the server mac
 
 Downloads run serially on the kiosk and continue when the management page closes. Job state is in memory and does not survive a server restart; downloaded files and tags do. The management page polls every three seconds; the TV refreshes its library every five seconds without interrupting its playing video. Completed downloads disappear from the manager. Failed downloads can be retried or removed with **Clear failed**, which only removes failed job records and does not delete videos or cancel queued or active downloads.
 
-## Jukebox downloader requirements
+## App Schedules
+
+Open **Management > Schedules** to add an app, local kiosk time, and weekdays.
+Schedules can be enabled, edited, deleted, or tested in the management browser.
+Definitions are stored on the server in `data/schedules.json`, so management from
+a phone or laptop updates the kiosk too. The kiosk refreshes definitions every
+30 seconds. Writes use the same access protection as the management screen.
+
+When a reminder is due, the kiosk offers **No**, **Snooze 10 minutes**, and **Yes**.
+No dismisses this occurrence only. Snoozes and handled occurrences survive page
+navigation and browser restarts in that browser's local storage. Regular reminders
+have a five-minute missed-time window; snoozed reminders can be picked up for up to
+24 hours. Reminders detected while a scheduled app or another dialog is active are
+persisted as pending, rather than expiring after five minutes. After the scheduled
+app returns or the dialog closes, pending reminders appear one at a time. Each pending
+reminder expires at the next local midnight after it was first detected; polling does
+not extend its expiry. Explicit ten-minute snoozes can still cross midnight.
+Disabling or deleting a schedule discards its pending reminders when the kiosk
+receives the update. Reminders are not shown in Management
+except through the test action. Keep one active kiosk tab to avoid duplicate prompts.
+The browser must remain open and the computer awake; this does not wake the device.
+
+Scheduled Workout launches skip the overview and begin with the five-second ready
+countdown. Completion returns to the interrupted page after five seconds; Done and
+confirmed early exit return immediately. Interrupted Jukebox playback restores its
+track, queue, position, volume, and playing/paused state. If browser autoplay policy
+blocks playback, use Play to resume. Scheduled Scripture starts today's daily plan
+at its first section. Mark each section read and continue; confirming **Finish
+reading and return** on the final section saves progress and notifies the scheduler
+to resume the interrupted app. Back or the Kiosk link also returns without marking
+unfinished reading complete. Read-aloud ending alone does not mark progress or return.
+Manual Scripture visits keep their previous reading position and completion flow.
+Other scheduled apps currently open normally; startup handling and completion
+notification are independent optional hooks from `@kiosk/remote-ui`. The shared
+scheduler owns return navigation and pauses further reminders during any scheduled visit.
+
+Run `npm test` for the schedule API tests and `npm test --workspaces --if-present`
+for app and shared-component regression tests.
+
+## Jukebox Downloader Requirements
 
 The Jukebox downloader runs in the production server or the Jukebox Vite server during development. Install both tools below on the kiosk machine, and make them callable from `PATH` before starting the server:
 

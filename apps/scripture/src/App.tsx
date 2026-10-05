@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { BookOpen, CalendarDays, Check, ChevronLeft, ChevronRight, Circle, Pause, Play, RotateCcw, Settings, Square, Volume2, X, ZoomIn, ZoomOut } from 'lucide-react'
-import { RemoteAppShell, RemoteButton, useToast } from '@kiosk/remote-ui'
+import { finishScheduledApp, getScheduledLaunch, RemoteAppShell, RemoteButton, useToast } from '@kiosk/remote-ui'
 import { bookName, dayForDate, planReference, resolveReading, type Bible, type Language, type Verse } from './reading'
 import { paginate, type Fragment } from './paginate'
 import './App.css'
@@ -49,11 +49,12 @@ const labels = {
 
 export default function App() {
   const { toast } = useToast()
+  const [scheduledLaunch] = useState(() => getScheduledLaunch('scripture'))
   const [preferences, setPreferences] = useState(loadPreferences)
   const { language, start, font, completed } = preferences
   const text = labels[language]
-  const [day, setDay] = useState(() => preferences.position?.day ?? dayForDate(start))
-  const [section, setSection] = useState(() => preferences.position?.section ?? 0)
+  const [day, setDay] = useState(() => scheduledLaunch ? dayForDate(start) : preferences.position?.day ?? dayForDate(start))
+  const [section, setSection] = useState(() => scheduledLaunch ? 0 : preferences.position?.section ?? 0)
   const [plan, setPlan] = useState<string[][]>([])
   const [bible, setBible] = useState<Bible | null>(null)
   const [loading, setLoading] = useState(true)
@@ -70,7 +71,7 @@ export default function App() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const viewport = useRef<HTMLDivElement>(null)
   const measurement = useRef<HTMLDivElement>(null)
-  const anchor = useRef<ReadingAnchor>(preferences.position?.anchor ?? { chapter: 0, verse: 0 })
+  const anchor = useRef<ReadingAnchor>(scheduledLaunch ? { chapter: 0, verse: 0 } : preferences.position?.anchor ?? { chapter: 0, verse: 0 })
   const audioGeneration = useRef(0)
   const utterance = useRef<SpeechSynthesisUtterance | null>(null)
   const readings = useMemo(() => bible && plan[day - 1] ? plan[day - 1].map((reference, index) => resolveReading(reference, index, bible, language)) : [], [bible, plan, day, language])
@@ -329,20 +330,42 @@ export default function App() {
   const continueLabel = language === 'nl' ? 'Markeer gelezen en ga verder' : 'Mark read and continue'
   const lastPage = pages.length > 0 && pageIndex >= pages.length - 1
   const finalPage = lastPage && section === text.sections.length - 1
-  const nextLabel = finalPage ? (isComplete ? (language === 'nl' ? 'Lezing voltooid' : 'Reading complete') : text.done) : lastPage ? continueLabel : text.next
+  const scheduledDoneLabel = language === 'nl' ? 'Voltooien en terugkeren' : 'Finish reading and return'
+  const nextLabel = finalPage ? (scheduledLaunch ? scheduledDoneLabel : isComplete ? (language === 'nl' ? 'Lezing voltooid' : 'Reading complete') : text.done) : lastPage ? continueLabel : text.next
 
   function finishAndContinue() {
     if (loading || !reading?.verses.length) return
-    setPreferences((current) => ({ ...current, completed: current.completed.includes(completionKey) ? current.completed : [...current.completed, completionKey] }))
+    const updated = { ...preferences, completed: completed.includes(completionKey) ? completed : [...completed, completionKey] }
+    if (scheduledLaunch && section === text.sections.length - 1) {
+      try {
+        localStorage.setItem('kiosk-scripture', JSON.stringify({ ...updated, position: { day, section, anchor: anchor.current } }))
+      } catch {
+        toast(text.storage, { variant: 'warning' })
+        return
+      }
+      stopAudio()
+      setPreferences(updated)
+      finishScheduledApp('scripture')
+      return
+    }
+    setPreferences(updated)
     if (section < text.sections.length - 1) changeSection(section + 1)
     else stopAudio()
   }
 
   return (
-    <div className="scripture-app" style={{ '--scripture-font': `${font}px` } as CSSProperties}>
-      <RemoteAppShell title="Scripture" category={text.plan} theme="scripture" initialFocusSelector=".scripture-open-readings" onBack={() => {
+    <div className="scripture-app" style={{ '--scripture-font': `${font}px` } as CSSProperties} onClickCapture={(event) => {
+      if (!scheduledLaunch || !(event.target as HTMLElement).closest('.remote-app-shell__brand')) return
+      event.preventDefault()
+      stopAudio()
+      finishScheduledApp('scripture')
+    }}>
+      <RemoteAppShell title="Scripture" category={text.plan} theme="scripture" backHref={scheduledLaunch?.returnUrl ?? '/'} initialFocusSelector=".scripture-open-readings" onBack={() => {
         if (panel) closePanel()
-        else window.location.assign('/')
+        else {
+          stopAudio()
+          if (!finishScheduledApp('scripture')) window.location.assign('/')
+        }
         return true
       }}>
         <div className="scripture-toolbar">
@@ -369,7 +392,7 @@ export default function App() {
             <footer className="scripture-reader-controls">
               <RemoteButton title={text.previous} aria-label={text.previous} disabled={pageIndex <= 0 || !pages.length || loading} onClick={() => changePage(pageIndex - 1)}><ChevronLeft /><span>{language === 'nl' ? 'Vorige' : 'Previous'}</span></RemoteButton>
               <div className="scripture-pages" aria-live="polite"><span>{text.page} {pages.length ? pageIndex + 1 : 0} / {pages.length}</span><div className="scripture-page-dots" aria-hidden="true">{Array.from({ length: Math.min(pages.length, 9) }, (_, index) => <i key={index} data-active={index === Math.min(8, Math.floor(pageIndex * Math.min(pages.length, 9) / Math.max(1, pages.length)))} />)}</div></div>
-              <RemoteButton className="scripture-next" title={nextLabel} aria-label={nextLabel} disabled={!pages.length || loading || finalPage && isComplete} onClick={() => lastPage ? finishAndContinue() : changePage(pageIndex + 1)}><span>{finalPage ? (isComplete ? (language === 'nl' ? 'Voltooid' : 'Complete') : text.done) : lastPage ? (language === 'nl' ? 'Volgende lezing' : 'Next reading') : (language === 'nl' ? 'Volgende' : 'Next')}</span>{finalPage ? <Check /> : <ChevronRight />}</RemoteButton>
+              <RemoteButton className="scripture-next" title={nextLabel} aria-label={nextLabel} disabled={!pages.length || loading || finalPage && isComplete && !scheduledLaunch} onClick={() => lastPage ? finishAndContinue() : changePage(pageIndex + 1)}><span>{finalPage ? (scheduledLaunch ? scheduledDoneLabel : isComplete ? (language === 'nl' ? 'Voltooid' : 'Complete') : text.done) : lastPage ? (language === 'nl' ? 'Volgende lezing' : 'Next reading') : (language === 'nl' ? 'Volgende' : 'Next')}</span>{finalPage ? <Check /> : <ChevronRight />}</RemoteButton>
             </footer>
           </section>
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { ScheduleReminder } from './ScheduleReminder'
 
 const BACK_KEYS = new Set(['Escape', 'Backspace', 'GoBack', 'BrowserBack'])
 const DIRECTION_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'])
@@ -104,6 +105,7 @@ export function RemoteNavigationProvider({
   return (
     <div ref={rootRef} className={className} data-remote-navigation="">
       {children}
+      <ScheduleReminder />
     </div>
   )
 }
