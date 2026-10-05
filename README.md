@@ -66,6 +66,88 @@ Without `KIOSK_ADMIN_PASSWORD`, management is available only from the server mac
 
 Downloads run serially on the kiosk and continue when the management page closes. Job state is in memory and does not survive a server restart; downloaded files and tags do. The management page polls every three seconds; the TV refreshes its library every five seconds without interrupting its playing video. Completed downloads disappear from the manager. Failed downloads can be retried or removed with **Clear failed**, which only removes failed job records and does not delete videos or cancel queued or active downloads.
 
+### Host on the LAN with Caddy
+
+Use Caddy as a reverse proxy, not a static file server: the Node.js server is
+required for management, schedules, and downloads. This example uses plain HTTP
+at `http://kiosk.local/` on a trusted LAN only. Management passwords are not
+encrypted over HTTP. Do not forward these ports from your internet router.
+
+Install Caddy using its [Debian/Ubuntu installation instructions](https://caddyserver.com/docs/install#debian-ubuntu-raspbian).
+Start Kiosk from the extracted release directory containing `package.json` and
+`server.ts`, for example `/opt/kiosk`:
+
+```sh
+cd /opt/kiosk
+export KIOSK_ADMIN_USERNAME=admin
+read -rsp 'Management password: ' KIOSK_ADMIN_PASSWORD
+echo
+export KIOSK_ADMIN_PASSWORD
+KIOSK_PORT=8080 npm start
+```
+
+Set a nonempty management password before exposing the proxy. Caddy connects
+from loopback, so without this password Kiosk's local-only management check
+does not protect against remote clients using Caddy. Keep the terminal open;
+Caddy does not start the Kiosk process. For automatic startup, run Kiosk as a
+separate systemd service with this working directory and a protected environment
+file containing its settings.
+
+Add this site block to `/etc/caddy/Caddyfile`, preserving any other sites:
+
+```caddyfile
+http://kiosk.local {
+	reverse_proxy 127.0.0.1:8080
+}
+```
+
+The explicit `http://` prevents Caddy from enabling automatic HTTPS for this
+site. Format, validate, and apply the configuration:
+
+```sh
+sudo caddy fmt --overwrite /etc/caddy/Caddyfile
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl enable --now caddy
+sudo systemctl reload caddy
+```
+
+For `.local` name resolution, the PC's hostname should be `kiosk` and Avahi
+should be running. Change the hostname only if needed:
+
+```sh
+hostnamectl --static
+sudo hostnamectl set-hostname kiosk
+sudo apt install avahi-daemon
+sudo systemctl enable --now avahi-daemon
+```
+
+Client devices must support mDNS and be on the same non-isolated LAN. If UFW is
+enabled, allow port 80 from your actual LAN subnet, for example:
+
+```sh
+sudo ufw status
+sudo ufw allow from 192.168.0.0/24 to any port 80 proto tcp
+```
+
+Keep direct LAN access to port 8080 blocked, removing any existing firewall
+allow rules for it; the Node.js server listens on all interfaces. Caddy can
+still reach it over loopback. Open `http://kiosk.local/` for the kiosk or
+`http://kiosk.local/manage` for management.
+
+To troubleshoot, first check `curl -I http://127.0.0.1:8080/` on the kiosk PC.
+A connection failure means the Node.js server is not running on that port.
+From Windows PowerShell, use `curl.exe` instead of the `curl` alias. For a kiosk
+at `192.168.0.11`, this checks Caddy while bypassing hostname resolution:
+
+```powershell
+curl.exe -v --resolve kiosk.local:80:192.168.0.11 http://kiosk.local/
+```
+
+If that works but normal access does not, check name resolution. If the browser
+upgrades to HTTPS, add a site-specific exception to its automatic HTTPS setting
+and use the explicit HTTP URL. Cached redirects or site data can also interfere;
+try a private window before clearing site data, which can reset app progress.
+
 ## App Schedules
 
 Open **Management > Schedules** to add an app, local kiosk time, and weekdays.
@@ -122,6 +204,71 @@ Downloads default to H.264/AAC for broad Linux playback compatibility, preferrin
 YouTube URLs are normalized to a watch URL containing only the video ID (`?v=...`), dropping playlist, tracking, timestamp, and fragment parameters.
 
 On a TV, use the remote's arrow keys to move focus, Enter to activate a control, and Escape or Back to close an app setup dialog.
+
+### Install on Linux Mint
+
+For 64-bit Intel/AMD Linux Mint (`uname -m` reports `x86_64`), install the
+official bundled yt-dlp executable in `/usr/local/bin/yt-dlp`. This makes it
+available system-wide, including to the Kiosk server. ARM machines require a
+different executable from the yt-dlp releases page.
+
+```sh
+sudo apt update
+sudo apt install curl ca-certificates ffmpeg
+curl -fL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux \
+	-o /tmp/yt-dlp
+sudo install -m 755 /tmp/yt-dlp /usr/local/bin/yt-dlp
+```
+
+Verify the installation:
+
+```sh
+command -v yt-dlp
+yt-dlp --version
+ffmpeg -version
+```
+
+`command -v yt-dlp` should report `/usr/local/bin/yt-dlp`. Ensure that directory
+is also in the server's `PATH` if you run Kiosk through systemd. Restart Kiosk
+after installation.
+
+Update the bundled yt-dlp executable later with:
+
+```sh
+sudo /usr/local/bin/yt-dlp -U
+```
+
+### Fix download permissions on Linux
+
+An `EACCES: permission denied, rename` error when publishing a download to
+`/opt/kiosk/apps/jukebox/public/videos/` can mean the destination directories
+are owned by root after extracting the release with `sudo`. The Node.js server
+user, not Caddy's user, needs write access to the videos, library metadata, and
+publication staging directories.
+
+Check which user runs Kiosk:
+
+```sh
+ps -eo user,args | grep '[n]ode.*server.ts'
+```
+
+Stop Kiosk before changing permissions. For a server running as `wolf` with the
+release in `/opt/kiosk`, run the following. Replace the username and paths to
+match your installation, including the systemd service user if applicable:
+
+```sh
+kiosk_user=wolf
+for directory in /opt/kiosk/apps/jukebox/data \
+	/opt/kiosk/apps/jukebox/public/videos \
+	/opt/kiosk/apps/jukebox/public/.jukebox-staging; do
+	sudo mkdir -p "$directory"
+	sudo chown -R "$kiosk_user:$(id -gn "$kiosk_user")" "$directory"
+	sudo chmod -R u+rwX "$directory"
+done
+```
+
+Restart Kiosk and retry the failed download. Keep ownership changes limited to
+these writable directories; do not run Kiosk as root or use `chmod 777`.
 
 ### Optional YouTube authentication
 
