@@ -53,6 +53,16 @@ a new directory and migrate `data/`, `apps/jukebox/data/`, and
 
 The TV jukebox provides playback and tag filters only. Open `/manage` on the root kiosk server from a laptop or phone to queue YouTube links, view download status, create or delete tags, and assign tags to videos. There is no YouTube search. The shared on-screen keyboard remains available but is unused.
 
+Click a video row to select just that video. Shift-click another row to select
+the visible range between them. Clicking elsewhere in the page clears the row
+selection; the Video tags panel stays active while you change tags.
+Use **Select visible** to select all videos matching the current filters.
+**Video tags** applies each tag change to
+every selected video without changing its other tags. A mixed checkbox means
+only some selected videos have that tag; checking it adds the tag to all of them.
+Selections persist across filtering and library refreshes, including hidden
+rows. Use **Clear selection** to deselect everything.
+
 For production, use Node.js 22.18 or newer:
 
 ```sh
