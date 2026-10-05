@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Kiosk release check
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+Unit=kiosk-update.service
+
+[Install]
+WantedBy=timers.target

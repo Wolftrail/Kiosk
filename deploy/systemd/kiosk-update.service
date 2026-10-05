@@ -1,0 +1,16 @@
+[Unit]
+Description=Check for and install Kiosk updates
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/kiosk-auto-update.conf
+ExecStart=/usr/bin/bash /opt/kiosk/shared/kiosk-update.sh
+User=@KIOSK_USER@
+Group=@KIOSK_GROUP@
+UMask=0022
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/kiosk

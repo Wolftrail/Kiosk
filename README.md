@@ -49,6 +49,54 @@ schedules, credentials, and Node.js itself are not bundled. Extract updates into
 a new directory and migrate `data/`, `apps/jukebox/data/`, and
 `apps/jukebox/public/videos/` from the old installation while the server is stopped.
 
+### Automatic updates on Linux Mint
+
+The updater checks GitHub's latest stable release once per day. It downloads the
+tagged release, verifies `SHA256SUMS`, stages it under `/opt/kiosk/releases/`,
+then switches `/opt/kiosk/current` and restarts Kiosk. It keeps the active and
+previous releases, retains up to five versions, and restores the previous
+symlink if the restarted server fails its health check. Prereleases are not
+installed automatically. A successful update briefly restarts the server and
+may interrupt active playback.
+
+This setup migrates the existing flat `/opt/kiosk` installation. It keeps
+`kiosk.service` in place and expects it to run as the service user with its
+working directory at `/opt/kiosk` and to start `/opt/kiosk/server.ts` or run
+`npm start` there. The setup command below assumes the service user is `wolf`
+and the port is `8080`; substitute your actual service user and port.
+
+Install the updater's system dependencies and bootstrap from the latest
+published stable release:
+
+```sh
+sudo apt update
+sudo apt install curl jq
+mkdir -p "$HOME/kiosk-update-bootstrap"
+cd "$HOME/kiosk-update-bootstrap"
+curl -fL https://github.com/Wolftrail/Kiosk/releases/latest/download/kiosk.tar.gz -o kiosk.tar.gz
+curl -fL https://github.com/Wolftrail/Kiosk/releases/latest/download/SHA256SUMS -o SHA256SUMS
+sha256sum -c SHA256SUMS
+tar -xzf kiosk.tar.gz
+sudo bash kiosk/scripts/install-auto-updates.sh /opt/kiosk "$PWD/kiosk" kiosk.service "$USER" 8080
+```
+
+The setup stops Kiosk while it moves the existing schedules, library metadata,
+and videos into shared storage. It then starts the tagged release, verifies
+`http://127.0.0.1:8080/api/schedules`, and enables `kiosk-update.timer`. The
+daily updater runs as the Kiosk service user; a sudoers rule permits it to
+restart only `kiosk.service`. Updates and rollbacks are logged by
+`kiosk-update.service` in the system journal:
+
+```sh
+systemctl status kiosk-update.timer
+sudo journalctl -u kiosk-update.service
+```
+
+The release workflow must publish a tag after updater support is added; older
+published archives do not contain the updater scripts or version marker. The
+existing manual release installation instructions remain available for other
+platforms and custom layouts.
+
 ## Management And Production
 
 The TV jukebox provides playback and tag filters only. Open `/manage` on the root kiosk server from a laptop or phone to queue YouTube links, view download status, create or delete tags, and assign tags to videos. There is no YouTube search. The shared on-screen keyboard remains available but is unused.
