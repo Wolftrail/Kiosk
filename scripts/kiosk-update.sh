@@ -28,6 +28,11 @@ fi
 
 current_version=$(<"$CURRENT/VERSION")
 previous_target=$(readlink "$CURRENT")
+if [[ "$current_version" == *-* ]]; then
+  log "Installed prerelease $current_version is pinned; stable-channel updates are skipped."
+  exit 0
+fi
+
 release_json=$(curl --fail --silent --show-error --location --retry 3 \
   --header 'Accept: application/vnd.github+json' \
   --header 'X-GitHub-Api-Version: 2022-11-28' \
@@ -41,6 +46,11 @@ fi
 
 if [[ "$latest_version" == "$current_version" ]]; then
   log "Already up to date at $current_version."
+  exit 0
+fi
+newest_version=$(printf '%s\n%s\n' "$current_version" "$latest_version" | sort -V | tail -n 1)
+if [[ "$newest_version" != "$latest_version" ]]; then
+  log "Latest stable release $latest_version is older than $current_version; skipping downgrade."
   exit 0
 fi
 

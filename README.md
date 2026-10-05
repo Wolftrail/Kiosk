@@ -56,8 +56,10 @@ tagged release, verifies `SHA256SUMS`, stages it under `/opt/kiosk/releases/`,
 then switches `/opt/kiosk/current` and restarts Kiosk. It keeps the active and
 previous releases, retains up to five versions, and restores the previous
 symlink if the restarted server fails its health check. Prereleases are not
-installed automatically. A successful update briefly restarts the server and
-may interrupt active playback.
+installed automatically; an installation already on a prerelease remains pinned
+until manually moved to a stable release. Older stable tags are never installed
+over a newer version. A successful update briefly restarts the server and may
+interrupt active playback.
 
 This setup migrates the existing flat `/opt/kiosk` installation. It keeps
 `kiosk.service` in place and expects it to run as the service user with its
