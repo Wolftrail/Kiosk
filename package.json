@@ -15,6 +15,7 @@
     "build:apps": "npm run build --workspaces --if-present",
     "lint": "oxlint",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "jukebox:normalize": "node --experimental-strip-types apps/jukebox/yt-dlp-plugin.ts --normalize-library",
     "start": "node --experimental-strip-types server.ts",
     "preview": "vite preview --host 0.0.0.0"
   },

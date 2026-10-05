@@ -203,6 +203,33 @@ Video downloads, merge intermediates, and thumbnail conversion files are staged 
 Downloads default to H.264/AAC for broad Linux playback compatibility, preferring the best match up to 1440p. If that codec pair is unavailable, the selector falls back to a pre-merged MP4 and then the best available format up to 1440p; actual resolution and codec depend on the source video.
 YouTube URLs are normalized to a watch URL containing only the video ID (`?v=...`), dropping playlist, tracking, timestamp, and fragment parameters.
 
+### Consistent music volume
+
+New downloads use FFmpeg's two-pass EBU R128 loudness normalization with a target
+of -16 LUFS, a -2 dBTP true-peak target, and an 11 LU loudness-range target.
+This reduces volume differences between songs without re-encoding the video.
+Audio is encoded as AAC at 192 kbps in an MP4 container. Songs retain musical
+dynamics; this does not make every moment equally loud. Normalization adds
+processing time, and a failure leaves the download unpublished.
+
+To normalize songs already in the library, stop Kiosk, back up
+`apps/jukebox/public/videos/` and `apps/jukebox/data/library.json`, then run from
+the installation directory as the same OS user that runs Kiosk:
+
+```sh
+npm run jukebox:normalize
+npm start
+```
+
+The command processes tracks serially without YouTube access, preserves tags
+and thumbnails, and skips tracks already normalized by Kiosk. Each completed
+file replaces its original only after processing succeeds; existing non-MP4
+files are remuxed into MP4 and their library filenames updated. Failures are
+reported with a nonzero exit status and can be retried by running the command
+again. Ensure sufficient temporary disk space for one extra video at a time.
+Restart Kiosk and reload its browser after processing. The player's volume
+control still sets your preferred listening level.
+
 On a TV, use the remote's arrow keys to move focus, Enter to activate a control, and Escape or Back to close an app setup dialog.
 
 ### Install on Linux Mint

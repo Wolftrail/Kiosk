@@ -15,10 +15,94 @@ const videoId = 'AbCdEf12345'
 const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
 const jpegFixture = Buffer.from('jpeg-fixture')
 
+test('real FFmpeg brings quiet and loud recordings to the same loudness', async (t) => {
+  if (childProcess.spawnSync('ffmpeg', ['-version'], { windowsHide: true }).status !== 0) {
+    t.skip('FFmpeg is not installed.')
+    return
+  }
+  const root = await mkdtemp(join(tmpdir(), 'jukebox-loudness-test-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  await mkdir(join(root, 'public', 'videos'), { recursive: true })
+  await mkdir(join(root, 'data'), { recursive: true })
+  await writeFile(join(root, 'package.json'), JSON.stringify({ type: 'module' }))
+  await copyFile(new URL('./yt-dlp-plugin.ts', import.meta.url), join(root, 'yt-dlp-plugin.ts'))
+  const ffmpeg = (args: string[]) => {
+    const result = childProcess.spawnSync('ffmpeg', ['-nostdin', '-hide_banner', ...args], { encoding: 'utf8', windowsHide: true })
+    assert.equal(result.status, 0, result.stderr)
+    return result
+  }
+  const measure = (filename: string) => {
+    const result = ffmpeg(['-i', filename, '-map', '0:a:0', '-af', 'loudnorm=I=-16:TP=-2:LRA=11:print_format=json', '-f', 'null', '-'])
+    return JSON.parse(/\{\s*"input_i"[\s\S]*?\}/.exec(result.stderr)![0]) as { input_i: string; input_tp: string }
+  }
+  const videoHash = (filename: string) => ffmpeg(['-loglevel', 'error', '-i', filename, '-map', '0:v:0', '-c:v', 'copy', '-f', 'hash', '-']).stdout
+  const library = []
+  const hashes: string[] = []
+  const originalLevels: number[] = []
+  for (const [index, volume] of ['1', '0.0316228'].entries()) {
+    const filename = `fixture-${index}.mp4`
+    const path = join(root, 'public', 'videos', filename)
+    ffmpeg([
+      '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=32x32:r=10',
+      '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000',
+      '-t', '5', '-af', `volume=${volume}`, '-c:v', 'mpeg4', '-c:a', 'aac', path,
+    ])
+    hashes.push(videoHash(path))
+    originalLevels.push(Number(measure(path).input_i))
+    library.push({ id: `fixture-${index}`, filename, tags: [] })
+  }
+  assert.ok(Math.abs(originalLevels[0] - originalLevels[1]) > 25)
+  await writeFile(join(root, 'data', 'library.json'), JSON.stringify(library))
+  const { normalizeLibraryAudio } = await import(pathToFileURL(join(root, 'yt-dlp-plugin.ts')).href)
+  assert.deepEqual(await normalizeLibraryAudio(), { normalized: 2, skipped: 0, failed: [] })
+  for (const [index, video] of library.entries()) {
+    const path = join(root, 'public', 'videos', video.filename)
+    const loudness = measure(path)
+    assert.ok(Math.abs(Number(loudness.input_i) + 16) < 0.5, JSON.stringify(loudness))
+    assert.ok(Number(loudness.input_tp) <= -2, JSON.stringify(loudness))
+    assert.equal(videoHash(path), hashes[index])
+  }
+  const command = childProcess.spawnSync(process.execPath, [
+    '--experimental-strip-types', join(root, 'yt-dlp-plugin.ts'), '--normalize-library',
+  ], { cwd: root, encoding: 'utf8', windowsHide: true })
+  assert.equal(command.status, 0, command.stderr)
+  assert.match(command.stdout, /Normalized 0 tracks; skipped 2 already normalized tracks/)
+})
+
+test('bulk video tags preserve unrelated tags and reject invalid updates atomically', async (t) => {
+  const library = [
+    { id: 'first', title: 'First', artist: 'Artist', duration: '1:00', filename: 'first.mp4', tags: ['Favorites'] },
+    { id: 'second', title: 'Second', artist: 'Artist', duration: '1:00', filename: 'second.mp4', tags: ['Rock'] },
+    { id: 'third', title: 'Third', artist: 'Artist', duration: '1:00', filename: 'third.mp4', tags: [] },
+  ]
+  const { root, baseUrl } = await createHarness(t, { library, tags: ['Favorites', 'Rock'] })
+  const save = (body: unknown) => fetch(`${baseUrl}/apps/jukebox/api/video-tags`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  })
+  const readLibrary = async () => JSON.parse(await readFile(join(root, 'data', 'library.json'), 'utf8'))
+  assert.equal((await save({ videoIds: ['first', 'second', 'first'], tag: 'Favorites', assigned: true })).status, 200)
+  const added = await readLibrary()
+  assert.deepEqual(added.map((video: { tags: string[] }) => video.tags), [['Favorites'], ['Rock', 'Favorites'], []])
+  for (const body of [
+    { videoIds: ['first', 'missing'], tag: 'Favorites', assigned: false },
+    { videoIds: ['first'], tag: 'Unknown', assigned: true },
+    { videoIds: [], tag: 'Favorites', assigned: true },
+    { videoIds: ['first'], tag: 'Favorites', assigned: 'true' },
+  ]) {
+    assert.equal((await save(body)).status, 400)
+    assert.deepEqual(await readLibrary(), added)
+  }
+  assert.equal((await save({ videoIds: ['first', 'second'], tag: 'Favorites', assigned: false })).status, 200)
+  assert.deepEqual((await readLibrary()).map((video: { tags: string[] }) => video.tags), [[], ['Rock'], []])
+  assert.equal((await save({ videoId: 'first', tags: ['Rock'] })).status, 200)
+  assert.deepEqual((await readLibrary())[0].tags, ['Rock'])
+})
+
 function makeFakeSpawn(root: string, calls: Array<{ command: string; args: string[] }>, options: {
   artwork?: 'success' | 'fail'
   ffmpegThumbnail?: 'success' | 'fail'
   download?: 'success' | 'fail' | 'interrupted' | 'empty' | 'outside'
+  normalization?: 'fail' | 'encode-fail' | 'invalid' | 'silent' | 'empty'
   metadataError?: string
   downloadGate?: Promise<void>
 }) {
@@ -71,6 +155,19 @@ function makeFakeSpawn(root: string, calls: Array<{ command: string; args: strin
           const output = args[args.indexOf('--output') + 1]
           const pendingPath = output.slice('thumbnail:'.length).replace('%(ext)s', 'jpg')
           await writeFile(pendingPath, jpegFixture)
+        } else if (command === 'ffmpeg' && args.includes('-af')) {
+          if (options.normalization === 'fail') throw new Error('normalization fixture failed')
+          if (args.includes('null')) {
+            stderr = JSON.stringify({
+              input_i: options.normalization === 'silent' ? '-inf' : '-24.0',
+              input_tp: options.normalization === 'silent' ? '-inf' : '-8.0',
+              input_lra: '4.0', input_thresh: '-34.0',
+              target_offset: options.normalization === 'invalid' ? 'nan' : '0.1',
+            })
+          } else {
+            await writeFile(args.at(-1)!, options.normalization === 'empty' ? '' : 'video-fixture')
+            if (options.normalization === 'encode-fail') throw new Error('normalization encoding failed')
+          }
         } else if (command === 'ffmpeg') {
           if (options.ffmpegThumbnail === 'fail') throw new Error('thumbnail failed')
           await writeFile(args.at(-1)!, jpegFixture)
@@ -93,6 +190,7 @@ async function createHarness(t: { after: (callback: () => Promise<void>) => void
   artwork?: 'success' | 'fail'
   ffmpegThumbnail?: 'success' | 'fail'
   download?: 'success' | 'fail' | 'interrupted' | 'empty' | 'outside'
+  normalization?: 'fail' | 'encode-fail' | 'invalid' | 'silent' | 'empty'
   metadataError?: string
   downloadGate?: Promise<void>
   cookiesFile?: string
@@ -155,8 +253,10 @@ async function createHarness(t: { after: (callback: () => Promise<void>) => void
   }
   syncBuiltinESMExports()
   let server
+  let normalizeLibraryAudio
   try {
     const pluginModule = await import(pathToFileURL(join(root, 'yt-dlp-plugin.ts')).href)
+    normalizeLibraryAudio = pluginModule.normalizeLibraryAudio
     let middleware
     server = createServer((request, response) => middleware(request, response, () => {
       response.writeHead(404)
@@ -193,7 +293,7 @@ async function createHarness(t: { after: (callback: () => Promise<void>) => void
 
   const address = server.address()
   const baseUrl = `http://127.0.0.1:${address.port}`
-  return { root, calls, baseUrl }
+  return { root, calls, baseUrl, normalizeLibraryAudio }
 }
 
 async function postDownload(baseUrl: string) {
@@ -222,6 +322,76 @@ async function postQueuedDownload(baseUrl: string, url = videoUrl, headers: Reco
 }
 
 test('yt-dlp plugin middleware regressions', async (t) => {
+  await t.test('normalizes existing songs once and preserves tags and thumbnails', async (t) => {
+    const video = {
+      id: videoId, title: 'Existing', artist: 'Artist', duration: '2:05',
+      filename: `${videoId}.mp4`, thumbnailFilename: `${videoId}.thumb.jpg`, tags: ['Favorites'],
+    }
+    const { root, calls, normalizeLibraryAudio } = await createHarness(t, { library: [video] })
+    await writeFile(join(root, 'public', 'videos', video.filename), 'original-video')
+    assert.deepEqual(await normalizeLibraryAudio(), { normalized: 1, skipped: 0, failed: [] })
+    assert.deepEqual(JSON.parse(await readFile(join(root, 'data', 'library.json'), 'utf8')), [{ ...video, audioNormalization: 'ebu-r128-v1' }])
+    assert.equal(await readFile(join(root, 'public', 'videos', video.filename), 'utf8'), 'video-fixture')
+    assert.deepEqual(await normalizeLibraryAudio(), { normalized: 0, skipped: 1, failed: [] })
+    assert.equal(calls.filter(({ args }) => args.includes('-af')).length, 2)
+    const output = calls.find(({ args }) => args.includes('-c:a'))!.args.at(-1)!
+    await assert.rejects(stat(dirname(output)), { code: 'ENOENT' })
+  })
+
+  await t.test('keeps existing files and metadata unchanged if encoding fails', async (t) => {
+    const video = { id: videoId, filename: `${videoId}.mp4`, tags: ['Favorites'] }
+    const { root, normalizeLibraryAudio } = await createHarness(t, { library: [video], normalization: 'encode-fail' })
+    await writeFile(join(root, 'public', 'videos', video.filename), 'original-video')
+    const result = await normalizeLibraryAudio()
+    assert.equal(result.normalized, 0)
+    assert.equal(result.failed.length, 1)
+    assert.match(result.failed[0].error, /normalization encoding failed/)
+    assert.deepEqual(JSON.parse(await readFile(join(root, 'data', 'library.json'), 'utf8')), [video])
+    assert.equal(await readFile(join(root, 'public', 'videos', video.filename), 'utf8'), 'original-video')
+  })
+
+  await t.test('remuxes existing non-MP4 files into MP4 for normalized AAC audio', async (t) => {
+    const video = { id: videoId, filename: `${videoId}.webm`, tags: [] }
+    const { root, normalizeLibraryAudio } = await createHarness(t, { library: [video], crossFilesystem: 'success' })
+    await writeFile(join(root, 'public', 'videos', video.filename), 'original-video')
+    assert.deepEqual(await normalizeLibraryAudio(), { normalized: 1, skipped: 0, failed: [] })
+    await assert.rejects(stat(join(root, 'public', 'videos', video.filename)), { code: 'ENOENT' })
+    const library = JSON.parse(await readFile(join(root, 'data', 'library.json'), 'utf8'))
+    assert.equal(library[0].filename, `${videoId}.mp4`)
+    assert.deepEqual(await readdir(join(root, 'public', '.jukebox-staging')), [])
+  })
+
+  await t.test('normalizes downloaded audio using measured loudness without re-encoding video', async (t) => {
+    const { calls, baseUrl } = await createHarness(t, { artwork: 'success' })
+    assert.equal((await postDownload(baseUrl)).status, 200)
+    const commands = calls.filter(({ command, args }) => command === 'ffmpeg' && args.includes('-af'))
+    assert.equal(commands.length, 2)
+    assert.equal(commands[0].args[commands[0].args.indexOf('-af') + 1], 'loudnorm=I=-16:TP=-2:LRA=11:print_format=json')
+    const output = commands[1].args
+    assert.equal(output[output.indexOf('-c:v') + 1], 'copy')
+    assert.equal(output[output.indexOf('-c:a') + 1], 'aac')
+    assert.equal(output[output.indexOf('-af') + 1], 'loudnorm=I=-16:TP=-2:LRA=11:measured_I=-24.0:measured_TP=-8.0:measured_LRA=4.0:measured_thresh=-34.0:offset=0.1:linear=true')
+    const video = (await (await fetch(`${baseUrl}/apps/jukebox/api/videos`)).json()).videos[0]
+    assert.equal(video.audioNormalization, 'ebu-r128-v1')
+    await assertStagingCleaned(calls)
+  })
+
+  for (const normalization of ['fail', 'encode-fail', 'invalid', 'empty'] as const) {
+    await t.test(`does not publish audio when normalization is ${normalization}`, async (t) => {
+      const { root, calls, baseUrl } = await createHarness(t, { normalization })
+      assert.equal((await postDownload(baseUrl)).status, 500)
+      assert.deepEqual(await readdir(join(root, 'public', 'videos')), [])
+      assert.deepEqual(JSON.parse(await readFile(join(root, 'data', 'library.json'), 'utf8')), [])
+      await assertStagingCleaned(calls)
+    })
+  }
+
+  await t.test('preserves silent audio without applying non-finite loudness measurements', async (t) => {
+    const { calls, baseUrl } = await createHarness(t, { normalization: 'silent' })
+    assert.equal((await postDownload(baseUrl)).status, 200)
+    assert.ok(calls.some(({ args }) => args[args.indexOf('-af') + 1] === 'anull'))
+  })
+
   for (const setting of ['file', 'browser'] as const) {
     await t.test(`passes ${setting} cookies to metadata, video, and thumbnail requests`, async (t) => {
       const value = setting === 'file' ? join(tmpdir(), 'private fixture cookies.txt') : 'firefox:fixture-profile'

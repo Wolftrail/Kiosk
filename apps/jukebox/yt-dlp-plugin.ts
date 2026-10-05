@@ -1,9 +1,9 @@
 import { spawn } from 'node:child_process'
 import { copyFile, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path'
+import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createReadStream } from 'node:fs'
 import { randomUUID, timingSafeEqual } from 'node:crypto'
 import type { Plugin } from 'vite'
@@ -16,6 +16,7 @@ type LibraryVideo = {
   filename: string
   thumbnailFilename?: string
   tags?: string[]
+  audioNormalization?: 'ebu-r128-v1'
 }
 
 type RequestBody = { url?: unknown; query?: unknown; name?: unknown; videoId?: unknown; tags?: unknown }
@@ -251,6 +252,80 @@ function runYtDlp(args: string[], maxOutput = 4_000_000) {
   })
 }
 
+function runAudioCommand(args: string[]) {
+  return new Promise<string>((resolvePromise, reject) => {
+    const child = spawn('ffmpeg', ['-nostdin', '-hide_banner', ...args], { cwd: projectRoot, windowsHide: true })
+    let stderr = ''
+    child.stdout.resume()
+    child.stderr.setEncoding('utf8')
+    child.stderr.on('data', (chunk: string) => {
+      stderr = (stderr + chunk).slice(-64_000)
+    })
+    child.once('error', reject)
+    child.once('close', (code) => {
+      if (code === 0) resolvePromise(stderr)
+      else reject(new Error(`Audio normalization failed: ${stderr.trim() || `FFmpeg exited with code ${code}.`}`))
+    })
+  })
+}
+
+async function normalizeAudio(source: string, destination: string) {
+  const target = 'loudnorm=I=-16:TP=-2:LRA=11'
+  const analysis = await runAudioCommand([
+    '-i', source, '-map', '0:a:0', '-af', `${target}:print_format=json`, '-f', 'null', '-',
+  ])
+  const measurements = /\{\s*"input_i"[\s\S]*?\}/.exec(analysis)?.[0]
+  if (!measurements) throw new Error('FFmpeg did not report audio loudness measurements.')
+  const measured = JSON.parse(measurements) as Record<string, unknown>
+  const fields = ['input_i', 'input_tp', 'input_lra', 'input_thresh', 'target_offset']
+  const silent = measured.input_i === '-inf' && measured.input_tp === '-inf'
+  if (!silent && fields.some((field) => typeof measured[field] !== 'string' || !Number.isFinite(Number(measured[field])))) {
+    throw new Error('FFmpeg reported invalid audio loudness measurements.')
+  }
+  const filter = silent ? 'anull' : `${target}:measured_I=${measured.input_i}:measured_TP=${measured.input_tp}:measured_LRA=${measured.input_lra}:measured_thresh=${measured.input_thresh}:offset=${measured.target_offset}:linear=true`
+  await runAudioCommand([
+    '-loglevel', 'error', '-y', '-i', source, '-map', '0:v:0', '-map', '0:a:0',
+    '-c:v', 'copy', '-af', filter, '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', destination,
+  ])
+  const details = await stat(destination)
+  if (!details.isFile() || details.size === 0) throw new Error('Normalized video is empty or not a file.')
+}
+
+export async function normalizeLibraryAudio() {
+  await assertFfmpegAvailable()
+  const result = { normalized: 0, skipped: 0, failed: [] as Array<{ id: string; error: string }> }
+  for (const video of await readLibrary()) {
+    if (video.audioNormalization === 'ebu-r128-v1') {
+      result.skipped += 1
+      continue
+    }
+    let stagingDirectory: string | undefined
+    try {
+      if (!video.filename || video.filename !== basename(video.filename) || video.filename.includes('\\') || video.filename === '.' || video.filename === '..') {
+        throw new Error('Invalid library video filename.')
+      }
+      const source = resolve(videoDirectory, video.filename)
+      const filename = `${basename(video.filename, extname(video.filename))}.mp4`
+      if (filename !== video.filename && await stat(resolve(videoDirectory, filename)).then(() => true).catch(() => false)) {
+        throw new Error('Normalized video filename already exists.')
+      }
+      stagingDirectory = await createTemporaryDirectory('normalize-')
+      const normalizedPath = resolve(stagingDirectory, filename)
+      await normalizeAudio(source, normalizedPath)
+      await publishFile(normalizedPath, resolve(videoDirectory, filename))
+      await updateLibrary((library) => library.map((item) => item.id === video.id
+        ? { ...item, filename, audioNormalization: 'ebu-r128-v1' } : item))
+      if (filename !== video.filename) await rm(source)
+      result.normalized += 1
+    } catch (error) {
+      result.failed.push({ id: video.id, error: error instanceof Error ? error.message : String(error) })
+    } finally {
+      if (stagingDirectory) await rm(stagingDirectory, { recursive: true, force: true }).catch(() => undefined)
+    }
+  }
+  return result
+}
+
 async function readLibrary(): Promise<Array<LibraryVideo & { tags: string[] }>> {
   try {
     const library = JSON.parse(await readFile(libraryPath, 'utf8')) as LibraryVideo[]
@@ -288,7 +363,7 @@ async function writeTags(tags: string[]) {
   function assertFfmpegAvailable() {
     return new Promise<void>((resolvePromise, reject) => {
       const process = spawn('ffmpeg', ['-version'], { cwd: projectRoot, windowsHide: true, stdio: 'ignore' })
-      const missingFfmpeg = () => reject(new Error('FFmpeg is required to merge YouTube video and audio. Install FFmpeg and make it available on PATH.'))
+      const missingFfmpeg = () => reject(new Error('FFmpeg is required to merge YouTube video and audio and normalize loudness. Install FFmpeg and make it available on PATH.'))
       process.once('error', missingFfmpeg)
       process.once('close', (code) => {
         if (code === 0) resolvePromise()
@@ -443,8 +518,10 @@ async function downloadVideo(url: string) {
     }
     const details = await stat(absolutePath)
     if (!details.isFile() || details.size === 0) throw new Error('Downloaded video is empty or not a file.')
-    filename = basename(absolutePath)
-    await publishFile(absolutePath, resolve(videoDirectory, filename))
+    filename = `${basename(absolutePath, extname(absolutePath))}.mp4`
+    const normalizedPath = resolve(stagingDirectory, `normalized-${filename}`)
+    await normalizeAudio(absolutePath, normalizedPath)
+    await publishFile(normalizedPath, resolve(videoDirectory, filename))
   } finally {
     await rm(stagingDirectory, { recursive: true, force: true }).catch(() => undefined)
   }
@@ -457,6 +534,7 @@ async function downloadVideo(url: string) {
       ? `${Math.floor(metadata.duration / 60)}:${String(Math.floor(metadata.duration % 60)).padStart(2, '0')}`
       : '--:--',
     filename,
+    audioNormalization: 'ebu-r128-v1',
   }
   downloadedVideo.thumbnailFilename = await ensureThumbnail(downloadedVideo, url)
   let savedVideo = downloadedVideo
@@ -612,7 +690,24 @@ export function handleApiRequest(request: IncomingMessage, response: ServerRespo
 
   if (pathname === `${apiPrefix}video-tags` && request.method === 'POST') {
     void readRequestBody(request)
-      .then(async ({ videoId, tags: requestedTags }) => {
+      .then(async ({ videoId, tags: requestedTags, videoIds, tag: requestedTag, assigned }) => {
+        if (videoIds !== undefined) {
+          if (!Array.isArray(videoIds) || videoIds.length === 0 || !videoIds.every((id) => typeof id === 'string' && id.length > 0) || typeof requestedTag !== 'string' || typeof assigned !== 'boolean') {
+            throw new Error('Provide video IDs, a tag, and an assigned boolean.')
+          }
+          const catalog = await readTags()
+          const tag = findTag(catalog, requestedTag)
+          if (!tag) throw new Error(`Unknown tag: ${requestedTag}`)
+          const ids = new Set(videoIds as string[])
+          const updatedLibrary = await updateLibrary((library) => {
+            if ([...ids].some((id) => !library.some((item) => item.id === id))) throw new Error('Video was not found in the library.')
+            return library.map((item) => ids.has(item.id) ? {
+              ...item,
+              tags: assigned ? [...new Set([...item.tags, tag])] : item.tags.filter((name) => name !== tag),
+            } : item)
+          })
+          return { videos: updatedLibrary.filter((item) => ids.has(item.id)) }
+        }
         if (typeof videoId !== 'string' || !Array.isArray(requestedTags) || !requestedTags.every((tag) => typeof tag === 'string')) {
           throw new Error('Provide a video ID and a list of tags.')
         }
@@ -749,4 +844,15 @@ async function updateLibrary(mutate: (library: Array<LibraryVideo & { tags: stri
   libraryMutation = mutation.catch(() => undefined)
   await mutation
   return updatedLibrary
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href && process.argv.includes('--normalize-library')) {
+  normalizeLibraryAudio().then((result) => {
+    console.log(`Normalized ${result.normalized} tracks; skipped ${result.skipped} already normalized tracks.`)
+    for (const failure of result.failed) console.error(`${failure.id}: ${failure.error}`)
+    if (result.failed.length) process.exitCode = 1
+  }).catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exitCode = 1
+  })
 }
