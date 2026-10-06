@@ -5,6 +5,7 @@ import { extname, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { handleApiRequest, protectManagementAccess } from './apps/jukebox/yt-dlp-plugin.ts'
 import { handleScheduleRequest } from './schedule-api.ts'
+import { handleReciteRequest } from './recite-api.ts'
 
 const projectRoot = fileURLToPath(new URL('.', import.meta.url))
 const distRoot = resolve(projectRoot, 'dist')
@@ -92,6 +93,11 @@ async function serveStatic(request: IncomingMessage, response: ServerResponse, p
 
 const server = createServer((request, response) => {
   const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+  if (pathname === '/api/recite/library') {
+    if (request.method === 'GET') void handleReciteRequest(request, response)
+    else protectManagementAccess(request, response, () => void handleReciteRequest(request, response), true)
+    return
+  }
   if (pathname === '/api/schedules') {
     if (request.method === 'GET') void handleScheduleRequest(request, response)
     else protectManagementAccess(request, response, () => void handleScheduleRequest(request, response), true)

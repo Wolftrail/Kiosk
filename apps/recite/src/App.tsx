@@ -101,7 +101,7 @@ export default function App() {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch(`${import.meta.env.BASE_URL}data/library.json`, { cache: 'no-store', signal: controller.signal })
+    fetch('/api/recite/library', { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error('The card library could not be loaded.')
         return parseLibrary(await response.json())

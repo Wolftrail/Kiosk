@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Check, Clock, Download, Film, LoaderCircle, Pencil, Plus, RefreshCw, Rows3, Tags, Trash2, X } from 'lucide-react'
-import { RemoteNavigationProvider, useToast } from '@kiosk/remote-ui'
+import { Check, Clock, Download, Film, Layers, LoaderCircle, Pencil, Plus, RefreshCw, Rows3, Tags, Trash2, X } from 'lucide-react'
+import { ConfirmationDialog, RemoteNavigationProvider, useToast } from '@kiosk/remote-ui'
 import Schedules from './Schedules'
+import Decks from './Decks'
 import './Management.css'
 
 type Video = { id: string; title: string; artist: string; duration: string; videoUrl: string; thumbnailUrl?: string; tags: string[] }
@@ -21,7 +22,14 @@ function mutation(method: string, body: unknown): RequestInit {
 
 export default function Management() {
   const { toast } = useToast()
-  const [section, setSection] = useState<'library' | 'schedules'>('library')
+  const [section, setSection] = useState<'library' | 'schedules' | 'decks'>('library')
+  const [deckDirty, setDeckDirty] = useState(false)
+  const [pendingSection, setPendingSection] = useState<typeof section | null>(null)
+  function changeSection(next: typeof section) {
+    if (next === section) return
+    if (deckDirty) setPendingSection(next)
+    else setSection(next)
+  }
   const [videos, setVideos] = useState<Video[]>([])
   const [tags, setTags] = useState<string[]>([])
   const [jobs, setJobs] = useState<Job[]>([])
@@ -145,13 +153,15 @@ export default function Management() {
     }, 'Tag renamed.')
   }
 
-  return <RemoteNavigationProvider><div className={`management ${section === 'schedules' ? 'management--schedules' : ''}`}>
-    <header className="management__header"><a href="/" className="management__brand">KIOSK</a><span>Management</span><a href="/apps/jukebox/">Open jukebox</a></header>
+  return <RemoteNavigationProvider><div className={`management ${section === 'schedules' ? 'management--schedules' : section === 'decks' ? 'management--decks' : ''}`}>
+    <header className="management__header"><a href="/" className="management__brand">KIOSK</a><span>Management</span><a href={section === 'decks' ? '/apps/recite/' : '/apps/jukebox/'}>{section === 'decks' ? 'Open Recite' : 'Open jukebox'}</a></header>
     <div className="management__tabs" role="tablist" aria-label="Management sections">
-      <button type="button" role="tab" id="library-tab" aria-selected={section === 'library'} aria-controls="library-panel" onClick={() => setSection('library')}><Film size={18} /> Jukebox library</button>
-      <button type="button" role="tab" id="schedules-tab" aria-selected={section === 'schedules'} aria-controls="schedules-panel" onClick={() => setSection('schedules')}><Clock size={18} /> Schedules</button>
+      <button type="button" role="tab" id="library-tab" aria-selected={section === 'library'} aria-controls="library-panel" onClick={() => changeSection('library')}><Film size={18} /> Jukebox library</button>
+      <button type="button" role="tab" id="decks-tab" aria-selected={section === 'decks'} aria-controls="decks-panel" onClick={() => changeSection('decks')}><Layers size={18} /> Flashcard decks</button>
+      <button type="button" role="tab" id="schedules-tab" aria-selected={section === 'schedules'} aria-controls="schedules-panel" onClick={() => changeSection('schedules')}><Clock size={18} /> Schedules</button>
     </div>
     {section === 'schedules' ? <main role="tabpanel" id="schedules-panel" aria-labelledby="schedules-tab"><Schedules /></main> :
+    section === 'decks' ? <main role="tabpanel" id="decks-panel" aria-labelledby="decks-tab"><Decks onDirtyChange={setDeckDirty} /></main> :
     <main role="tabpanel" id="library-panel" aria-labelledby="library-tab">
       <div className="management__heading"><div><h1>Jukebox library</h1><p>{videos.length} videos · {tags.length} tags</p></div><button type="button" title="Refresh library" aria-label="Refresh library" disabled={busy} onClick={() => void perform(refresh)}><RefreshCw size={18} /></button></div>
       {notice && <p className="management__notice" role="status">{notice}</p>}
@@ -202,5 +212,6 @@ export default function Management() {
         if (document.activeElement === edge) { event.preventDefault(); next?.focus() }
       }
     }}>{pendingDelete.kind === 'tag' ? <><h2 id="delete-title">Delete tag "{pendingDelete.tag}"?</h2><p>This removes the tag from all videos. Video files are kept.</p><div className="management__dialog-actions"><button ref={cancelRef} disabled={busy} onClick={() => setPendingDelete(null)}>Cancel</button><button className="is-destructive" disabled={busy} onClick={() => void perform(async () => { await request('tags', mutation('DELETE', { name: pendingDelete.tag })); setPendingDelete(null) })}><Trash2 size={17} /> Delete tag</button></div></> : <><h2 id="delete-title">Delete {pendingDelete.videos.length === 1 ? 'video' : `${pendingDelete.videos.length} videos`}?</h2><p>This permanently removes {pendingDelete.videos.length === 1 ? `“${pendingDelete.videos[0].title}” and its video file` : 'the selected videos and their files'} from the library.</p><div className="management__dialog-actions"><button ref={cancelRef} disabled={busy} onClick={() => setPendingDelete(null)}>Cancel</button><button className="is-destructive" disabled={busy} onClick={() => void perform(async () => { await request('videos', mutation('DELETE', { videoIds: pendingDelete.videos.map((video) => video.id) })); setPendingDelete(null) }, 'Selected videos deleted.')}><Trash2 size={17} /> Delete {pendingDelete.videos.length === 1 ? 'video' : 'videos'}</button></div></>}</section></div>}
+    {pendingSection && <ConfirmationDialog title="Discard unsaved changes?" message="Your deck and card edits have not been saved." confirmLabel="Discard changes" destructive onCancel={() => setPendingSection(null)} onConfirm={() => { setSection(pendingSection); setPendingSection(null); setDeckDirty(false) }} />}
   </div></RemoteNavigationProvider>
 }

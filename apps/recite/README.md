@@ -21,11 +21,27 @@ The independent dev URL is `http://localhost:5178/apps/recite/`.
 `http://localhost:5173/apps/recite/`. Production builds go to
 `dist/apps/recite/` and are served by the root server.
 
-## Externally Managed Library
+## Deck Management
 
-The included two decks are sample content. Replace `public/data/library.json`
-with the JSON export from the original Angular Recite application, or generate
-the same format with another external editor:
+Open `/manage` on the kiosk server and select **Flashcard decks** to create,
+rename, enable/disable, and delete decks, and add, edit, or delete their cards.
+Deleting a deck also deletes its cards and requires confirmation. Unsaved edits
+are protected when switching decks, cards, or management tabs.
+
+The import control accepts a JSON export from the original Angular Recite app
+or the format below. Import replaces the whole library after confirmation;
+export downloads the saved library for backup. Browser-local review progress
+is not included in exports.
+
+Saved changes live in `data/recite-library.json` at the repository root and
+survive builds. Back up this file with your kiosk data. Until the first save,
+the API uses `apps/recite/public/data/library.json` as sample/seed content.
+Both development and production use `/api/recite/library`; writes use the same
+management-access protection as schedules. The independent Recite dev server
+also serves this endpoint. Activate **Refresh library** in Recite (or reopen
+the app) to load changes. An active training session is not interrupted.
+
+Library format:
 
 ```json
 {
@@ -51,12 +67,9 @@ Malformed libraries show a retry state rather than silently dropping cards.
 Optional scheduling fields from Angular exports are accepted: `interval` (days),
 `repetitions`, `easeFactor`, and `lastReviewDate` (ISO timestamp).
 
-In development, replace the source library and activate Refresh library on the
-deck screen. For production, rebuild after changing the source library, or have
-your external publishing process replace `dist/apps/recite/data/library.json`
-atomically and then refresh the TV library. The next full build overwrites that
-published copy, so retain the authoritative export outside `dist/` as well.
-There is no upload endpoint, automatic sync, or Recite editor in `/manage`.
+Libraries are limited to 5 MB. Invalid imports are rejected without changing
+the saved library. Once a saved library exists, source/built sample-library
+changes do not replace it; use the management import control instead.
 
 ## Training And Progress
 

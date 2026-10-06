@@ -1,0 +1,381 @@
+{
+  "decks": [
+    {
+      "id": "thai-family",
+      "name": "Family",
+      "enabled": true
+    },
+    {
+      "id": "thai-time",
+      "name": "Time",
+      "enabled": true
+    },
+    {
+      "id": "thai-directions",
+      "name": "Directions",
+      "enabled": true
+    }
+  ],
+  "flashcards": [
+    {
+      "id": "thai-family-father",
+      "deckId": "thai-family",
+      "front": "Father",
+      "back": "พ่อ\npho",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-family-mother",
+      "deckId": "thai-family",
+      "front": "Mother",
+      "back": "แม่\nmae",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-family-older-brother",
+      "deckId": "thai-family",
+      "front": "Older brother",
+      "back": "พี่ชาย\nphi-chaai",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-family-younger-brother",
+      "deckId": "thai-family",
+      "front": "Younger brother",
+      "back": "น้องชาย\nnong-chaai",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-family-older-sister",
+      "deckId": "thai-family",
+      "front": "Older sister",
+      "back": "พี่สาว\nphi-saao",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-family-younger-sister",
+      "deckId": "thai-family",
+      "front": "Younger sister",
+      "back": "น้องสาว\nnong-saao",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-family-son",
+      "deckId": "thai-family",
+      "front": "Son",
+      "back": "ลูกชาย\nluuk-chaai",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-family-daughter",
+      "deckId": "thai-family",
+      "front": "Daughter",
+      "back": "ลูกสาว\nluuk-saao",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-family-paternal-grandfather",
+      "deckId": "thai-family",
+      "front": "Grandfather (father's father)",
+      "back": "ปู่\npuu",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-family-paternal-grandmother",
+      "deckId": "thai-family",
+      "front": "Grandmother (father's mother)",
+      "back": "ย่า\nyaa",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-family-maternal-grandfather",
+      "deckId": "thai-family",
+      "front": "Grandfather (mother's father)",
+      "back": "ตา\ntaa",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-family-maternal-grandmother",
+      "deckId": "thai-family",
+      "front": "Grandmother (mother's mother)",
+      "back": "ยาย\nyaai",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-time-today",
+      "deckId": "thai-time",
+      "front": "Today",
+      "back": "วันนี้\nwan-nii",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-time-tomorrow",
+      "deckId": "thai-time",
+      "front": "Tomorrow",
+      "back": "พรุ่งนี้\nphrung-nii",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-time-yesterday",
+      "deckId": "thai-time",
+      "front": "Yesterday",
+      "back": "เมื่อวาน\nmuea-waan",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-time-now",
+      "deckId": "thai-time",
+      "front": "Now",
+      "back": "ตอนนี้\nton-nii",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-time-morning",
+      "deckId": "thai-time",
+      "front": "In the morning",
+      "back": "ตอนเช้า\nton-chao",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-time-afternoon",
+      "deckId": "thai-time",
+      "front": "In the afternoon",
+      "back": "ตอนบ่าย\nton-baai",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-time-evening",
+      "deckId": "thai-time",
+      "front": "In the evening",
+      "back": "ตอนเย็น\nton-yen",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-time-night",
+      "deckId": "thai-time",
+      "front": "At night",
+      "back": "ตอนกลางคืน\nton-klaang-khuen",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-time-day",
+      "deckId": "thai-time",
+      "front": "Day",
+      "back": "วัน\nwan",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-time-week",
+      "deckId": "thai-time",
+      "front": "Week",
+      "back": "สัปดาห์\nsap-daa",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-time-month",
+      "deckId": "thai-time",
+      "front": "Month",
+      "back": "เดือน\nduean",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-time-year",
+      "deckId": "thai-time",
+      "front": "Year",
+      "back": "ปี\npii",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-directions-left",
+      "deckId": "thai-directions",
+      "front": "Left",
+      "back": "ซ้าย\nsaai",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-directions-right",
+      "deckId": "thai-directions",
+      "front": "Right",
+      "back": "ขวา\nkhwaa",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-directions-straight",
+      "deckId": "thai-directions",
+      "front": "Go straight ahead",
+      "back": "ตรงไป\ntrong-pai",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-directions-turn-left",
+      "deckId": "thai-directions",
+      "front": "Turn left",
+      "back": "เลี้ยวซ้าย\nliao-saai",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-directions-turn-right",
+      "deckId": "thai-directions",
+      "front": "Turn right",
+      "back": "เลี้ยวขวา\nliao-khwaa",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-directions-stop",
+      "deckId": "thai-directions",
+      "front": "Stop",
+      "back": "หยุด\nyut",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-directions-here",
+      "deckId": "thai-directions",
+      "front": "Here",
+      "back": "ที่นี่\nthii-nii",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-directions-there",
+      "deckId": "thai-directions",
+      "front": "There",
+      "back": "ที่นั่น\nthii-nan",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-directions-near",
+      "deckId": "thai-directions",
+      "front": "Near",
+      "back": "ใกล้\nklai (falling tone)",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-directions-far",
+      "deckId": "thai-directions",
+      "front": "Far",
+      "back": "ไกล\nklai (mid tone)",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-directions-entrance",
+      "deckId": "thai-directions",
+      "front": "Entrance",
+      "back": "ทางเข้า\nthaang-khao",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    },
+    {
+      "id": "thai-directions-exit",
+      "deckId": "thai-directions",
+      "front": "Exit",
+      "back": "ทางออก\nthaang-ook",
+      "interval": 0,
+      "repetitions": 0,
+      "easeFactor": 2.5,
+      "lastReviewDate": null
+    }
+  ]
+}
