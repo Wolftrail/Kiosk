@@ -19,17 +19,20 @@
   z-index: 10;
   inset: 16px 22px auto;
   width: auto;
+  height: auto;
+  padding: 0;
   min-height: 44px;
   pointer-events: none;
 }
 
 .remote-app-shell[data-theme='jukebox'] .remote-app-shell__brand,
 .remote-app-shell[data-theme='jukebox'] .remote-app-shell__back {
+  min-height: 0;
   color: #fff9ed;
   pointer-events: auto;
 }
 
-.remote-app-shell[data-theme='jukebox'] .remote-app-shell__brand-mark { color: #24332f; background: #fff9ed; }
+.remote-app-shell[data-theme='jukebox'] .remote-app-shell__brand-mark { width: 38px; height: 38px; color: #24332f; background: #fff9ed; }
 .remote-app-shell[data-theme='jukebox'] .remote-app-shell__back { border-color: rgba(255, 249, 237, .4); background: rgba(15, 22, 20, .54); }
 .remote-app-shell[data-theme='jukebox'] .remote-app-shell__main { position: absolute; inset: 0; width: 100%; min-height: 0; flex: none; padding: 0; }
 .remote-app-shell[data-theme='jukebox'] .remote-app-shell__intro,

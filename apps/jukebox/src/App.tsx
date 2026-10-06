@@ -323,6 +323,7 @@ function App() {
       category="MEDIA"
       description="Your room, your rotation."
       theme="jukebox"
+      headerTitle={null}
       initialFocusSelector=".jukebox__play-button"
       onBack={() => { window.location.assign('/'); return true }}
     >

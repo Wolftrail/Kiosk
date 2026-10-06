@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { RemoteLink } from './RemoteLink'
+import { RemoteAppHeader } from './RemoteAppHeader'
 import { RemoteNavigationProvider } from './RemoteNavigationProvider'
 
 export type RemoteAppTheme = 'jukebox' | 'workout' | 'scripture' | 'recite'
@@ -13,6 +13,9 @@ export type RemoteAppShellProps = {
   backHref?: string
   onBack?: () => boolean | void
   initialFocusSelector?: string
+  headerTitle?: ReactNode
+  headerActions?: ReactNode
+  headerClassName?: string
 }
 
 export function RemoteAppShell({
@@ -24,6 +27,9 @@ export function RemoteAppShell({
   backHref = '/',
   onBack,
   initialFocusSelector = '.remote-app-shell__brand',
+  headerTitle = title,
+  headerActions,
+  headerClassName,
 }: RemoteAppShellProps) {
   const handleBack = () => {
     if (onBack) return onBack()
@@ -38,19 +44,22 @@ export function RemoteAppShell({
       onBack={handleBack}
     >
       <div className="remote-app-shell" data-theme={theme}>
-        <header className="remote-app-shell__header">
-          <RemoteLink className="remote-app-shell__brand" href={backHref} aria-label="Kiosk home">
-            <span className="remote-app-shell__brand-mark" aria-hidden="true">K</span>
-            <span>KIOSK</span>
-          </RemoteLink>
-        </header>
+        <RemoteAppHeader
+          title={headerTitle != null && headerTitle !== false ? <h1 id="remote-app-title">{headerTitle}</h1> : undefined}
+          actions={headerActions}
+          className={headerClassName}
+          backHref={backHref}
+          onBack={onBack ? handleBack : undefined}
+        />
 
-        <main className="remote-app-shell__main">
-          <section className="remote-app-shell__intro" aria-labelledby="remote-app-title">
-            <p className="remote-app-shell__category">{category}</p>
-            <h1 id="remote-app-title">{title}</h1>
-            {description && <p className="remote-app-shell__description">{description}</p>}
-          </section>
+        <main className="remote-app-shell__main" aria-labelledby="remote-app-title">
+          {headerTitle == null || headerTitle === false ? (
+            <section className="remote-app-shell__intro" aria-labelledby="remote-app-title">
+              <p className="remote-app-shell__category">{category}</p>
+              <h1 id="remote-app-title">{title}</h1>
+              {description && <p className="remote-app-shell__description">{description}</p>}
+            </section>
+          ) : description && <p className="remote-app-shell__description">{description}</p>}
           <div className="remote-app-shell__content">{children}</div>
         </main>
 

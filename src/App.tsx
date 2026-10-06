@@ -26,7 +26,7 @@ function AppTile({ app, onSetup }: { app: KioskApp; onSetup: (app: KioskApp) => 
     <>
       <span className="app-tile__topline">
         <span className="app-tile__category">{app.category}</span>
-        <span className="app-tile__status">{app.url ? 'READY' : 'IN SETUP'}</span>
+        {!app.url && <span className="app-tile__status">IN SETUP</span>}
       </span>
       <span className={`app-tile__art app-tile__art--${app.id}`} aria-hidden="true">
         <img className="app-tile__image" src={appArtwork[app.id]} alt="" />

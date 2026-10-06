@@ -360,7 +360,12 @@ export default function App() {
       stopAudio()
       finishScheduledApp('scripture')
     }}>
-      <RemoteAppShell title="Scripture" category={text.plan} theme="scripture" backHref={scheduledLaunch?.returnUrl ?? '/'} initialFocusSelector=".scripture-open-readings" onBack={() => {
+      <RemoteAppShell title="Scripture" category={text.plan} theme="scripture" backHref={scheduledLaunch?.returnUrl ?? '/'} initialFocusSelector=".scripture-open-readings" headerActions={
+        <div className="scripture-toolbar">
+          <RemoteButton className="scripture-open-readings" title={readingsLabel} aria-label={readingsLabel} aria-haspopup="dialog" aria-expanded={panel === 'readings'} onClick={() => setPanel('readings')}><BookOpen /><span>{readingsLabel}</span></RemoteButton>
+          <RemoteButton className="scripture-open-settings" title={settingsLabel} aria-haspopup="dialog" aria-expanded={panel === 'settings'} aria-label={`${settingsLabel}, ${text.day} ${day} / 365, ${text.edition}`} onClick={() => setPanel('settings')}><CalendarDays /><span>{text.day} {day} / 365</span><span className="scripture-edition">{language === 'en' ? 'KJV' : 'SV'}</span><Settings size={22} /></RemoteButton>
+        </div>
+      } onBack={() => {
         if (panel) closePanel()
         else {
           stopAudio()
@@ -368,11 +373,6 @@ export default function App() {
         }
         return true
       }}>
-        <div className="scripture-toolbar">
-          <RemoteButton className="scripture-open-readings" aria-haspopup="dialog" aria-expanded={panel === 'readings'} onClick={() => setPanel('readings')}><BookOpen /><span>{readingsLabel}</span></RemoteButton>
-          <RemoteButton className="scripture-open-settings" aria-haspopup="dialog" aria-expanded={panel === 'settings'} aria-label={`${settingsLabel}, ${text.day} ${day} / 365, ${text.edition}`} onClick={() => setPanel('settings')}><CalendarDays /><span>{text.day} {day} / 365</span><span className="scripture-edition">{language === 'en' ? 'KJV' : 'SV'}</span><Settings size={22} /></RemoteButton>
-        </div>
-
         <div className="scripture-workspace">
           <section className="scripture-reader" aria-label={text.sections[section]}>
             <header className="scripture-reader-heading">

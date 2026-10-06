@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, CheckSquare, ChevronLeft, ChevronRight, CircleCheck, Eye, Layers, RefreshCw, RotateCcw, Square, SquareStop, Trophy, Volume2, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CheckSquare, ChevronLeft, ChevronRight, CircleCheck, Eye, Layers, RefreshCw, RotateCcw, Square, SquareStop, Target, Trophy, Volume2, Zap } from 'lucide-react'
 import { RemoteAppShell, RemoteButton, useToast } from '@kiosk/remote-ui'
 import { isDue, parseLibrary, selectCards } from './library'
 import type { Library } from './library'
@@ -247,7 +247,7 @@ export default function App() {
       <div className="recite" onKeyDown={(event) => { if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault() }}>
         {!session && <>
           <div className="recite-heading">
-            <div><p className="recite-eyebrow">Your decks</p><h2>Make it memorable.</h2></div>
+            <div className="recite-heading-title"><span className="recite-heading-icon"><Layers aria-hidden="true" /></span><div><p className="recite-eyebrow">Your decks</p><h2>Make it memorable.</h2></div></div>
             <RemoteButton className="recite-icon-button" aria-label="Refresh library" title="Refresh library" onClick={refresh} disabled={status === 'loading'}><RefreshCw aria-hidden="true" /></RemoteButton>
           </div>
           {status === 'loading' && <div className="recite-empty" role="status"><Layers size={48} /><h2>Loading decks...</h2></div>}
@@ -262,11 +262,15 @@ export default function App() {
                   const SelectionIcon = checked ? CheckSquare : Square
                   return <div key={deck.id} className="recite-deck-tile">
                   <RemoteButton className="recite-deck" data-tone={index % 3} data-image={!!deck.image} role="checkbox" aria-checked={checked} onClick={() => toggleDeck(deck.id)}>
-                    {deck.image && <img className="recite-deck-image" src={deck.image.url} alt={deck.image.alt} loading="lazy" />}
-                    <div className="recite-deck-symbol"><Layers size={32} aria-hidden="true" /><span>{String(index + 1).padStart(2, '0')}</span></div>
-                    <h3 dir="auto">{deck.name}</h3>
-                    <div className="recite-deck-count"><span>{cards.length} cards</span><span>{due} due</span></div>
-                    <SelectionIcon className="recite-deck-check" size={28} aria-hidden="true" />
+                    <div className="recite-deck-cover">
+                      {deck.image ? <img className="recite-deck-image" src={deck.image.url} alt={deck.image.alt} loading="lazy" /> : <Layers className="recite-deck-placeholder" aria-hidden="true" />}
+                      <div className="recite-deck-symbol"><Layers size={26} aria-hidden="true" /><span>{String(index + 1).padStart(2, '0')}</span></div>
+                      <SelectionIcon className="recite-deck-check" size={32} aria-hidden="true" />
+                    </div>
+                    <div className="recite-deck-details">
+                      <h3 dir="auto">{deck.name}</h3>
+                      <div className="recite-deck-count"><span><Layers size={20} aria-hidden="true" />{cards.length} cards</span><span><Target size={20} aria-hidden="true" />{due} due</span></div>
+                    </div>
                   </RemoteButton>
                   {deck.image && <ImageCredit image={deck.image} />}
                   </div>
@@ -274,8 +278,8 @@ export default function App() {
               </div>}
             <div className="recite-setup">
               <div className="recite-mode" role="group" aria-label="Training mode">
-                <RemoteButton aria-pressed={!practice} onClick={() => setPractice(false)}>Review <span>{dueCount}</span></RemoteButton>
-                <RemoteButton aria-pressed={practice} onClick={() => setPractice(true)}>Practice <span>{totalCount}</span></RemoteButton>
+                <RemoteButton aria-pressed={!practice} onClick={() => setPractice(false)}><Layers aria-hidden="true" />Review <span>{dueCount}</span></RemoteButton>
+                <RemoteButton aria-pressed={practice} onClick={() => setPractice(true)}><Target aria-hidden="true" />Practice <span>{totalCount}</span></RemoteButton>
               </div>
               <p className="recite-selection" role="status">{selected.length === 0 ? 'No decks selected' : available === 0 ? (practice ? 'No cards in these decks' : 'All caught up') : `${selected.length} ${selected.length === 1 ? 'deck' : 'decks'} selected`}</p>
               <RemoteButton className="recite-button recite-start" data-primary disabled={!available} onClick={start}>{practice ? 'Start practice' : 'Start review'}<ArrowRight aria-hidden="true" /></RemoteButton>

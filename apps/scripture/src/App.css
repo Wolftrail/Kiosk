@@ -12,12 +12,12 @@
 .scripture-app .remote-app-shell__navigation,
 .scripture-app .remote-app-shell { height: 100%; min-height: 0; overflow: clip; }
 .scripture-app .remote-app-shell { position: relative; padding: 0; gap: 0; color: var(--scripture-ink); background: var(--scripture-paper); }
-.scripture-app .remote-app-shell__header { flex: 0 0 76px; min-height: 0; padding: 0 30px; background: linear-gradient(110deg, #382e30, #2a2729); border-bottom: 1px solid #ffffff20; }
-.scripture-app .remote-app-shell__brand { color: #faf7f0; font-size: 18px; gap: 12px; }
-.scripture-app .remote-app-shell__brand-mark { width: 42px; height: 42px; background: var(--scripture-accent); color: white; border-color: #a94d56; border-radius: 8px; }
+.scripture-app .remote-app-shell__header { background: linear-gradient(110deg, #382e30, #2a2729); box-shadow: inset 0 -1px #ffffff20; }
+.scripture-app .remote-app-shell__brand { color: #faf7f0; }
+.scripture-app .remote-app-shell__brand-mark { background: var(--scripture-accent); color: white; border-color: #a94d56; border-radius: 8px; }
 .scripture-app .remote-app-shell__main { flex: 1 1 0; min-height: 0; min-width: 0; padding: 0; justify-content: flex-start; }
-.scripture-app .remote-app-shell__intro { position: absolute; top: 23px; left: 185px; margin: 0; pointer-events: none; animation: none; }
-.scripture-app .remote-app-shell__intro h1 { margin: 0; color: #faf7f0; font: 600 24px/1.2 var(--kiosk-font-ui); text-transform: uppercase; }
+.scripture-app .remote-app-header { --remote-header-color: #faf7f0; --remote-header-title-size: 24px; grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr); }
+.scripture-app .remote-app-header__title { font-weight: 600; }
 .scripture-app .remote-app-shell__category,
 .scripture-app .remote-app-shell__footer { display: none; }
 .scripture-app .remote-app-shell__content { flex: 1 1 0; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 0; }
@@ -27,7 +27,7 @@
 .scripture-app button:disabled { cursor: default; opacity: .4; }
 .scripture-app button:hover:not(:disabled) { background: #92394512; }
 .scripture-app button:focus-visible, .scripture-app input:focus-visible, .scripture-app a:focus-visible { outline: 4px solid var(--scripture-focus); outline-offset: 3px; box-shadow: 0 0 0 7px var(--scripture-dark); }
-.scripture-toolbar { position: absolute; right: 24px; top: 12px; display: flex; align-items: center; gap: 14px; color: #faf7f0; font-size: 18px; }
+.scripture-toolbar { display: flex; align-items: center; gap: 14px; color: #faf7f0; font-size: 18px; }
 .scripture-toolbar button { border-color: transparent; padding-inline: 12px; }
 .scripture-toolbar button:hover:not(:disabled) { background: #ffffff12; }
 .scripture-edition { margin-left: 8px; padding-left: 20px; border-left: 1px solid #ffffff40; }
@@ -90,11 +90,8 @@
 .scripture-source p { margin: 8px 0 16px; overflow-wrap: anywhere; }
 .scripture-source > span { font-size: 13px; }
 @media (min-width: 1700px) and (min-height: 1000px) {
-  .scripture-app .remote-app-shell__header { flex-basis: 96px; padding-inline: 48px; }
-  .scripture-app .remote-app-shell__brand { font-size: 24px; }
-  .scripture-app .remote-app-shell__intro { top: 31px; left: 240px; }
-  .scripture-app .remote-app-shell__intro h1 { font-size: 30px; }
-  .scripture-toolbar { top: 20px; right: 44px; font-size: 24px; }
+  .scripture-app .remote-app-header { --remote-header-title-size: 30px; }
+  .scripture-toolbar { font-size: 24px; }
   .scripture-app button { min-height: 56px; min-width: 56px; }
   .scripture-reader-heading { padding-top: 48px; }
   .scripture-reader-heading h2 { font-size: 52px; }
@@ -105,9 +102,6 @@
   .scripture-reader-controls { padding: 24px 56px; font-size: 26px; }
 }
 @media (max-height: 650px) {
-  .scripture-app .remote-app-shell__header { flex-basis: 64px; }
-  .scripture-app .remote-app-shell__intro { top: 18px; }
-  .scripture-toolbar { top: 6px; }
   .scripture-reader-heading { padding-top: 18px; }
   .scripture-reader-heading h2 { font-size: 36px; }
   .scripture-reading-area { margin-block: 16px; }
@@ -117,17 +111,14 @@
   .scripture-settings-content { gap: 14px; }
 }
 @media (max-width: 1100px) {
-  .scripture-app .remote-app-shell__header { padding-inline: 20px; }
-  .scripture-app .remote-app-shell__intro { left: 165px; }
-  .scripture-toolbar { right: 16px; gap: 4px; font-size: 16px; }
+  .scripture-toolbar { gap: 4px; font-size: 16px; }
   .scripture-reader-heading, .scripture-reading-area, .scripture-notice { width: calc(100% - 72px); }
   .scripture-reader-controls { padding-inline: 28px; }
 }
 @media (max-width: 760px) {
-  .scripture-app .remote-app-shell__header { flex-basis: 120px; align-items: flex-start; padding: 12px 16px; }
-  .scripture-app .remote-app-shell__intro { top: 23px; left: auto; right: 18px; }
-  .scripture-app .remote-app-shell__intro h1 { font-size: 20px; }
-  .scripture-toolbar { top: 64px; right: 12px; left: 12px; justify-content: space-between; font-size: 14px; }
+  .scripture-app .remote-app-header { --remote-header-title-size: 20px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .scripture-toolbar { gap: 8px; font-size: 14px; }
+  .scripture-toolbar button span { display: none; }
   .scripture-toolbar button { padding-inline: 8px; gap: 8px; min-height: 44px; }
   .scripture-edition { padding-left: 10px; margin-left: 0; }
   .scripture-open-settings > svg:first-child { display: none; }

@@ -154,10 +154,20 @@ function App() {
     }}>
     <RemoteAppShell
       title="7-minute workout"
+      headerTitle="Workout"
       category="FITNESS"
       theme="workout"
       backHref={scheduledLaunch?.returnUrl ?? '/'}
       initialFocusSelector=".workout-primary"
+      headerActions={
+        <RemoteButton className="workout-sound" aria-label={sound ? 'Mute workout sounds' : 'Enable workout sounds'} aria-pressed={sound} title={sound ? 'Mute workout sounds' : 'Enable workout sounds'} onClick={() => {
+          if (!sound) {
+            audioRef.current ??= new AudioContext()
+            void audioRef.current.resume().catch(() => {})
+          }
+          setSound(!sound)
+        }}>{sound ? <Volume2 /> : <VolumeX />}</RemoteButton>
+      }
       onBack={() => {
         if (exitOpen) cancelExit()
         else if (active) requestExit('/')
@@ -167,13 +177,6 @@ function App() {
     >
       <div className="workout-topline">
         <span className="workout-session-label"><Activity aria-hidden="true" />{complete ? '12 / 12 complete' : active ? `Move ${String(stage.exerciseIndex + 1).padStart(2, '0')} / 12` : '12 moves. One session.'}</span>
-        <RemoteButton className="workout-sound" aria-label={sound ? 'Mute workout sounds' : 'Enable workout sounds'} aria-pressed={sound} title={sound ? 'Mute workout sounds' : 'Enable workout sounds'} onClick={() => {
-          if (!sound) {
-            audioRef.current ??= new AudioContext()
-            void audioRef.current.resume().catch(() => {})
-          }
-          setSound(!sound)
-        }}>{sound ? <Volume2 /> : <VolumeX />}</RemoteButton>
       </div>
 
       <div className="workout-fit-viewport" ref={viewportRef}>

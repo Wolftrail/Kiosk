@@ -19,6 +19,67 @@ import { RemoteAppShell } from '@kiosk/remote-ui'
 
 Available themes are `jukebox`, `workout`, `scripture`, and `recite`. The shell provides the full-viewport layout, common header and footer, Back navigation, initial focus, and D-pad movement. Its children remain app-specific.
 
+## Shared App Header
+
+Every shell uses `RemoteAppHeader` with the app's `title` centered by default.
+The header owns the page's `h1`; the main content does not repeat the title or
+category. Add `headerActions` and `headerClassName` without replacing the shell,
+or override `headerTitle` with a title or current context. Set `headerTitle={null}`
+to omit the header title and retain the original content introduction, as Jukebox
+does for its immersive layout.
+
+On wider screens, balanced side columns keep the title centered regardless of
+the action count. At widths of 760px or less, the title occupies its own row above
+navigation and actions. Apps still own compact action layouts at narrow widths.
+
+Standard headers are 76px high with 32px horizontal insets and a 56px-high Kiosk
+target containing a 40px logo. Narrow titled headers reserve 120px, with 20px
+horizontal insets and a stable 56px navigation row. Longer titles may grow the
+header rather than overlap controls. Keep shell frames flush to the viewport and
+put app-specific padding on main content and footers, not around the header.
+Themes can change colors and surfaces without overriding brand dimensions or
+header offsets. Jukebox explicitly keeps its compact overlay geometry.
+
+```tsx
+import { RemoteAppShell, RemoteButton } from '@kiosk/remote-ui'
+import { Settings } from 'lucide-react'
+
+<RemoteAppShell
+  title="My app"
+  category="MEDIA"
+  theme="jukebox"
+  headerActions={
+    <RemoteButton aria-label="Settings" title="Settings" onClick={openSettings}>
+      <Settings aria-hidden="true" />
+    </RemoteButton>
+  }
+>
+  <YourAppContent />
+</RemoteAppShell>
+```
+
+Actions are ordinary React content: apps own their handlers, state, disabled
+conditions, tooltips, and button styling. Use `RemoteButton`/`RemoteLink` so actions
+participate in D-pad navigation. Keep the action set compact; use an app-owned
+menu for larger sets rather than crowding the header.
+
+Custom layouts can render `RemoteAppHeader` inside their existing
+`RemoteNavigationProvider`, using `title`, `actions`, `backHref`, `onBack`,
+`className`, and `style`. The header does not mount another navigation provider.
+Without `onBack`, the Kiosk link follows `backHref` (default `/`). With `onBack`,
+ordinary activation is intercepted and the callback owns navigation, including
+confirmation or closing a secondary view. Modified clicks retain native link
+behavior. The shell supplies its existing `onBack` callback to the header; capture
+handlers that prevent navigation are still respected.
+
+Theme with `--remote-header-color`, `--remote-header-background`,
+`--remote-header-border`, `--remote-header-height` (minimum height),
+`--remote-header-padding`, `--remote-header-gap`, `--remote-header-action-gap`,
+and `--remote-header-title-size`.
+The existing `remote-app-shell__header` and brand selectors remain supported.
+Reserve enough viewport space for the bar and focus outlines; verify long context
+labels and action bounds at the app's supported sizes.
+
 ## Scheduled App Lifecycle
 
 `RemoteNavigationProvider` (also used by `RemoteAppShell`) owns schedule reminders
