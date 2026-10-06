@@ -401,6 +401,11 @@ reading and return** on the final section saves progress and notifies the schedu
 to resume the interrupted app. Back or the Kiosk link also returns without marking
 unfinished reading complete. Read-aloud ending alone does not mark progress or return.
 Manual Scripture visits keep their previous reading position and completion flow.
+Scheduled **Recite review** starts a Review session with due cards from the enabled
+decks selected in that kiosk browser, or all enabled decks if no selection has been
+saved. Grades update browser-local progress normally; schedules never start Practice.
+Completion or no due cards returns after five seconds. Done, Back, and the Kiosk
+link return immediately. Ordinary Recite visits still open the deck overview.
 Other scheduled apps currently open normally; startup handling and completion
 notification are independent optional hooks from `@kiosk/remote-ui`. The shared
 scheduler owns return navigation and pauses further reminders during any scheduled visit.

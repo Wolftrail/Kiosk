@@ -4,7 +4,7 @@ export const occurrenceStorageKey = 'kiosk.schedule-occurrences.v1'
 export const schedulableApps = [
   { id: 'workout', name: 'Workout', url: '/apps/workout/', prompt: 'Ready to start your workout?' },
   { id: 'jukebox', name: 'Jukebox', url: '/apps/jukebox/', prompt: 'Ready to listen to music?' },
-  { id: 'recite', name: 'Recite', url: '/apps/recite/', prompt: 'Ready to practice your flashcards?' },
+  { id: 'recite', name: 'Recite review', url: '/apps/recite/', prompt: 'Ready to review your due flashcards?' },
   { id: 'scripture', name: 'Scripture', url: '/apps/scripture/', prompt: 'Ready to read Scripture?' },
 ] as const
 

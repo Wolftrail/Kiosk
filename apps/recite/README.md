@@ -1,9 +1,12 @@
 # Recite
 
-A TV-first flashcard trainer. Select one or more decks, choose Review or Practice,
-and train with the remote's arrows and Enter. Back returns to deck selection;
-Back from deck selection returns to the kiosk. Card and deck management is not
-part of the TV app.
+A TV-first flashcard trainer. Open **Choose decks** to select one or more decks,
+then use **Done** to save or **Cancel** / Back to discard changes. The start screen
+shows the chosen decks as a non-interactive overview. Choose Review or Practice
+and train with the remote's arrows and Enter. Back from training returns to the
+overview; Back from the overview returns to the kiosk. Card and deck management
+is not part of the TV app. Photo credits remain visible without focusable links
+on the TV; the management screens retain their attribution links.
 
 ## Run
 
@@ -20,6 +23,20 @@ The independent dev URL is `http://localhost:5178/apps/recite/`.
 `npm run dev:all` also makes it available at
 `http://localhost:5173/apps/recite/`. Production builds go to
 `dist/apps/recite/` and are served by the root server.
+
+## Scheduled Reviews
+
+In **Management > Schedules**, choose **Recite review**, a local time, and weekdays.
+Accepting the reminder automatically starts a Review session with only due cards
+from the enabled decks selected in that browser. If no selection has been saved,
+all enabled decks are used. Practice is never started by a schedule.
+
+Review grades save progress normally. Completion, or a visit with no due cards,
+returns to the interrupted page after five seconds; **Done**, Back, or the Kiosk
+link returns immediately. A failed library load offers **Try again** without
+losing the scheduled visit. Ordinary app visits still open the deck overview.
+Deck choices and review progress are browser-local, so configure them on the TV
+browser rather than expecting a management browser's choices to be shared.
 
 ## Deck Management
 
@@ -43,8 +60,8 @@ Run `npm run storage:migrate` with all kiosk/app servers stopped to align legacy
 data paths. Compatibility links retain the old backing files for code rollback.
 Both development and production use `/api/recite/library`; writes use the same
 management-access protection as schedules. The independent Recite dev server
-also serves this endpoint. Activate **Refresh library** in Recite (or reopen
-the app) to load changes. An active training session is not interrupted.
+also serves this endpoint. Reopen Recite to load changes; the library is fetched
+on startup. An active training session is not interrupted.
 
 Library format:
 
@@ -116,6 +133,6 @@ voice, or restart the browser if needed. Some voices require internet access.
   usable for the current visit.
 
 The main screen is viewport-bounded. Large deck libraries scroll only inside
-the deck chooser; card text fits into the available card area, with previous/next
+the bounded deck overview and chooser; card text fits into the available card area, with previous/next
 text-page controls for long content instead of shrinking it below 24px. All training
 controls remain outside that area and visible.

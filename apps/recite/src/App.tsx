@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, CheckSquare, ChevronLeft, ChevronRight, CircleCheck, Eye, Layers, RefreshCw, RotateCcw, Square, SquareStop, Target, Trophy, Volume2, Zap } from 'lucide-react'
-import { RemoteAppShell, RemoteButton, useToast } from '@kiosk/remote-ui'
+import { ArrowLeft, ArrowRight, Check, CheckSquare, ChevronLeft, ChevronRight, CircleCheck, Eye, Layers, RefreshCw, RotateCcw, SlidersHorizontal, Square, SquareStop, Target, Trophy, Volume2, Zap } from 'lucide-react'
+import { ConfirmationDialog, finishScheduledApp, getScheduledLaunch, RemoteAppShell, RemoteButton, useToast } from '@kiosk/remote-ui'
 import { isDue, parseLibrary, selectCards } from './library'
 import type { Library } from './library'
 import { advanceSession, applyProgress, createSession, rememberCard, reviewCard } from './session'
@@ -86,11 +86,15 @@ function CardText({ text, language }: { text: string; language?: string }) {
 
 export default function App() {
   const { toast } = useToast()
+  const [scheduledLaunch] = useState(() => getScheduledLaunch('recite'))
+  const scheduledStarted = useRef(false)
   const [library, setLibrary] = useState<Library | null>(null)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
   const [selected, setSelected] = useState<string[]>([])
+  const [choosingDecks, setChoosingDecks] = useState(false)
+  const [pendingDecks, setPendingDecks] = useState<string[]>([])
   const [practice, setPractice] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
   const [revealed, setRevealed] = useState(false)
@@ -164,10 +168,18 @@ export default function App() {
         return parseLibrary(await response.json())
       })
       .then((data) => {
+        if (controller.signal.aborted) return
         const preferences = stored(DECKS_KEY)
         const enabled = data.decks.filter((deck) => deck.enabled).map((deck) => deck.id)
-        setSelected(Array.isArray(preferences) ? enabled.filter((id) => preferences.includes(id)) : enabled)
-        setLibrary(applyProgress(data, progress.current))
+        const deckIds = Array.isArray(preferences) ? enabled.filter((id) => preferences.includes(id)) : enabled
+        const currentLibrary = applyProgress(data, progress.current)
+        setSelected(deckIds)
+        setLibrary(currentLibrary)
+        if (scheduledLaunch && !scheduledStarted.current) {
+          scheduledStarted.current = true
+          const cards = selectCards(currentLibrary, deckIds, true)
+          if (cards.length) setSession(createSession(cards, false))
+        }
         setStatus('ready')
       })
       .catch((reason: unknown) => {
@@ -176,7 +188,13 @@ export default function App() {
         setStatus('error')
       })
     return () => controller.abort()
-  }, [reload])
+  }, [reload, scheduledLaunch])
+
+  useEffect(() => {
+    if (!scheduledLaunch || status !== 'ready' || (session && !complete)) return
+    const timer = window.setTimeout(() => finishScheduledApp('recite'), 5000)
+    return () => window.clearTimeout(timer)
+  }, [scheduledLaunch, status, session, complete])
 
   useEffect(() => {
     grading.current = false
@@ -195,9 +213,18 @@ export default function App() {
   }
 
   function toggleDeck(id: string) {
-    const next = selected.includes(id) ? selected.filter((entry) => entry !== id) : [...selected, id]
-    setSelected(next)
-    persist(DECKS_KEY, next)
+    setPendingDecks((current) => current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id])
+  }
+
+  function chooseDecks() {
+    setPendingDecks(selected)
+    setChoosingDecks(true)
+  }
+
+  function saveDecks() {
+    setSelected(pendingDecks)
+    persist(DECKS_KEY, pendingDecks)
+    setChoosingDecks(false)
   }
 
   function refresh() {
@@ -229,6 +256,7 @@ export default function App() {
 
   function back() {
     stopPronunciation()
+    if (finishScheduledApp('recite')) return true
     if (!session) { window.location.assign('/'); return true }
     setSession(null)
     setRevealed(false)
@@ -236,6 +264,7 @@ export default function App() {
   }
 
   const enabledDecks = library?.decks.filter((deck) => deck.enabled) ?? []
+  const chosenDecks = enabledDecks.filter((deck) => selected.includes(deck.id))
   const dueCount = library ? selectCards(library, selected, true).length : 0
   const totalCount = library ? selectCards(library, selected, false).length : 0
   const available = practice ? totalCount : dueCount
@@ -243,36 +272,40 @@ export default function App() {
   const recalled = results.filter((rating) => rating !== 'again').length
 
   return (
-    <RemoteAppShell title="Recite" category="Learning" theme="recite" onBack={back} initialFocusSelector="[data-primary]">
+    <RemoteAppShell title="Recite" category="Learning" theme="recite" backHref={scheduledLaunch?.returnUrl ?? '/'} onBack={back} initialFocusSelector="[data-primary]">
       <div className="recite" onKeyDown={(event) => { if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault() }}>
         {!session && <>
-          <div className="recite-heading">
+          {!scheduledLaunch && <div className="recite-heading">
             <div className="recite-heading-title"><span className="recite-heading-icon"><Layers aria-hidden="true" /></span><div><p className="recite-eyebrow">Your decks</p><h2>Make it memorable.</h2></div></div>
-            <RemoteButton className="recite-icon-button" aria-label="Refresh library" title="Refresh library" onClick={refresh} disabled={status === 'loading'}><RefreshCw aria-hidden="true" /></RemoteButton>
-          </div>
+            <div className="recite-heading-actions">
+              {status === 'ready' && enabledDecks.length > 0 && <RemoteButton className="recite-button recite-secondary recite-choose" aria-haspopup="dialog" onClick={chooseDecks}><SlidersHorizontal aria-hidden="true" />Choose decks</RemoteButton>}
+            </div>
+          </div>}
           {status === 'loading' && <div className="recite-empty" role="status"><Layers size={48} /><h2>Loading decks...</h2></div>}
           {status === 'error' && <div className="recite-empty" role="alert"><Layers size={48} /><h2>Library unavailable</h2><p>{error}</p><RemoteButton className="recite-button" data-primary onClick={refresh}><RefreshCw />Try again</RemoteButton></div>}
-          {status === 'ready' && <>
-            {enabledDecks.length === 0 ? <div className="recite-empty"><Layers size={56} /><h2>No decks available</h2><p>No enabled decks are in the library.</p></div> :
-              <div className="recite-decks" aria-label="Deck selection">
-                {enabledDecks.map((deck, index) => {
+          {status === 'ready' && (scheduledLaunch ? <div className="recite-complete">
+            <CircleCheck className="recite-trophy" size={76} aria-hidden="true" />
+            <p className="recite-eyebrow">Scheduled review</p>
+            <h2>{enabledDecks.length === 0 ? 'No decks available' : selected.length === 0 ? 'No decks selected' : totalCount === 0 ? 'No cards to review' : 'All caught up.'}</h2>
+            <RemoteButton className="recite-button" data-primary onClick={back}><Check aria-hidden="true" />Done</RemoteButton>
+          </div> : <>
+            {enabledDecks.length === 0 ? <div className="recite-empty"><Layers size={56} /><h2>No decks available</h2><p>No enabled decks are in the library.</p></div> : chosenDecks.length === 0 ? <div className="recite-empty"><Layers size={56} aria-hidden="true" /><h2>No decks selected</h2></div> :
+              <div className="recite-decks" role="region" aria-label="Chosen decks">
+                {chosenDecks.map((deck, index) => {
                   const cards = library!.flashcards.filter((entry) => entry.deckId === deck.id)
                   const due = cards.filter((entry) => isDue(entry)).length
-                  const checked = selected.includes(deck.id)
-                  const SelectionIcon = checked ? CheckSquare : Square
                   return <div key={deck.id} className="recite-deck-tile">
-                  <RemoteButton className="recite-deck" data-tone={index % 3} data-image={!!deck.image} role="checkbox" aria-checked={checked} onClick={() => toggleDeck(deck.id)}>
+                  <article className="recite-deck" data-tone={index % 3} data-image={!!deck.image}>
                     <div className="recite-deck-cover">
                       {deck.image ? <img className="recite-deck-image" src={deck.image.url} alt={deck.image.alt} loading="lazy" /> : <Layers className="recite-deck-placeholder" aria-hidden="true" />}
                       <div className="recite-deck-symbol"><Layers size={26} aria-hidden="true" /><span>{String(index + 1).padStart(2, '0')}</span></div>
-                      <SelectionIcon className="recite-deck-check" size={32} aria-hidden="true" />
                     </div>
                     <div className="recite-deck-details">
                       <h3 dir="auto">{deck.name}</h3>
                       <div className="recite-deck-count"><span><Layers size={20} aria-hidden="true" />{cards.length} cards</span><span><Target size={20} aria-hidden="true" />{due} due</span></div>
                     </div>
-                  </RemoteButton>
-                  {deck.image && <ImageCredit image={deck.image} />}
+                  </article>
+                  {deck.image && <ImageCredit image={deck.image} linked={false} />}
                   </div>
                 })}
               </div>}
@@ -284,17 +317,45 @@ export default function App() {
               <p className="recite-selection" role="status">{selected.length === 0 ? 'No decks selected' : available === 0 ? (practice ? 'No cards in these decks' : 'All caught up') : `${selected.length} ${selected.length === 1 ? 'deck' : 'decks'} selected`}</p>
               <RemoteButton className="recite-button recite-start" data-primary disabled={!available} onClick={start}>{practice ? 'Start practice' : 'Start review'}<ArrowRight aria-hidden="true" /></RemoteButton>
             </div>
-          </>}
+          </>)}
         </>}
+        {choosingDecks && <ConfirmationDialog
+          title="Choose decks"
+          className="recite-deck-picker"
+          confirmLabel="Done"
+          confirmIcon={<Check aria-hidden="true" />}
+          onConfirm={saveDecks}
+          onCancel={() => setChoosingDecks(false)}
+          message={<>
+            <p className="recite-picker-summary" role="status">{pendingDecks.length} {pendingDecks.length === 1 ? 'deck' : 'decks'} selected</p>
+            <div className="recite-picker-list" role="group" aria-label="Available decks">
+              {enabledDecks.map((deck) => {
+                const checked = pendingDecks.includes(deck.id)
+                const SelectionIcon = checked ? CheckSquare : Square
+                const cards = library!.flashcards.filter((entry) => entry.deckId === deck.id)
+                return <RemoteButton key={deck.id} className="recite-picker-deck" role="checkbox" aria-checked={checked} onClick={() => toggleDeck(deck.id)}>
+                  <SelectionIcon aria-hidden="true" />
+                  <span className="recite-picker-deck-copy"><span dir="auto">{deck.name}</span><span className="recite-picker-count">{cards.length} cards / {cards.filter((entry) => isDue(entry)).length} due</span></span>
+                </RemoteButton>
+              })}
+            </div>
+          </>}
+        />}
         {session && !complete && card && <>
           <div className="recite-session-heading">
-            <RemoteButton className="recite-button recite-secondary" onClick={back}><ArrowLeft aria-hidden="true" />Decks</RemoteButton>
-            <span className="recite-deck-name" dir="auto">{activeDeck?.name}</span>
+            <RemoteButton className="recite-button recite-secondary" onClick={back}><ArrowLeft aria-hidden="true" />{scheduledLaunch ? 'Done' : 'Decks'}</RemoteButton>
+            <div className="recite-session-deck">
+              {activeDeck?.image && <img className="recite-session-image" src={activeDeck.image.url} alt="" />}
+              <div className="recite-session-deck-copy"><span className="recite-deck-name" dir="auto" title={activeDeck?.name}>{activeDeck?.name}</span>{activeDeck?.image && <ImageCredit image={activeDeck.image} linked={false} />}</div>
+            </div>
             <span className="recite-counter">{session.index + 1} / {session.cards.length}</span>
           </div>
           <progress className="recite-progress" value={session.index} max={session.cards.length} aria-label="Session progress" />
           <div className="recite-flashcard" data-revealed={revealed}>
-            <div className="recite-card-heading"><p className="recite-eyebrow">{session.practice ? 'Practice' : 'Review'} / {revealed ? 'Answer' : 'Question'}</p>{revealed && activeDeck?.language && <RemoteButton className="recite-icon-button" aria-label={speaking ? 'Stop pronunciation' : 'Speak answer'} title={speaking ? 'Stop pronunciation' : 'Speak answer'} onClick={speaking ? stopPronunciation : speakAnswer}>{speaking ? <SquareStop aria-hidden="true" /> : <Volume2 aria-hidden="true" />}</RemoteButton>}</div>
+            <div className="recite-card-heading">
+              <div className="recite-card-state"><span className="recite-card-state-icon">{revealed ? <Check aria-hidden="true" /> : <Layers aria-hidden="true" />}</span><div><p className="recite-eyebrow">{session.practice ? 'Practice' : 'Review'}</p><h2>{revealed ? 'Answer' : 'Question'}</h2></div></div>
+              {revealed && activeDeck?.language && <RemoteButton className="recite-icon-button" aria-label={speaking ? 'Stop pronunciation' : 'Speak answer'} title={speaking ? 'Stop pronunciation' : 'Speak answer'} onClick={speaking ? stopPronunciation : speakAnswer}>{speaking ? <SquareStop aria-hidden="true" /> : <Volume2 aria-hidden="true" />}</RemoteButton>}
+            </div>
             <CardText key={`${card.id}-${revealed}`} text={revealed ? card.back : card.front} language={revealed ? activeDeck?.language : undefined} />
           </div>
           <div className="recite-actions">
@@ -307,7 +368,7 @@ export default function App() {
           <p className="recite-eyebrow">{session.practice ? 'Practice complete' : 'Review complete'}</p>
           <h2>A little more remembered.</h2>
           <div className="recite-results"><span><CircleCheck aria-hidden="true" />{recalled} recalled</span><span><RotateCcw aria-hidden="true" />{results.length - recalled} to revisit</span></div>
-          <div className="recite-complete-actions"><RemoteButton className="recite-button recite-secondary" onClick={back}><ArrowLeft aria-hidden="true" />Decks</RemoteButton>{available > 0 && <RemoteButton className="recite-button" data-primary onClick={start}>{session.practice ? 'Practice again' : 'Review more'}<ArrowRight aria-hidden="true" /></RemoteButton>}</div>
+          <div className="recite-complete-actions"><RemoteButton className="recite-button recite-secondary" data-primary={scheduledLaunch ? '' : undefined} onClick={back}><ArrowLeft aria-hidden="true" />{scheduledLaunch ? 'Done' : 'Decks'}</RemoteButton>{!scheduledLaunch && available > 0 && <RemoteButton className="recite-button" data-primary onClick={start}>{session.practice ? 'Practice again' : 'Review more'}<ArrowRight aria-hidden="true" /></RemoteButton>}</div>
         </div>}
       </div>
     </RemoteAppShell>
