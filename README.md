@@ -144,6 +144,82 @@ Without `KIOSK_ADMIN_PASSWORD`, management is available only from the server mac
 
 Downloads run serially on the kiosk and continue when the management page closes. Job state is in memory and does not survive a server restart; downloaded files and tags do. The management page polls every three seconds; the TV refreshes its library every five seconds without interrupting its playing video. Completed downloads disappear from the manager. Failed downloads can be retried or removed with **Clear failed**, which only removes failed job records and does not delete videos or cancel queued or active downloads.
 
+### Environment Configuration
+
+Use environment variables for server settings and credentials; no separate JSON
+configuration file is required. Never commit real API keys or passwords, put
+them in browser code, or prefix them with `VITE_`, which exposes values to the
+browser. The tracked [.env.example](.env.example) template contains empty
+credential placeholders and non-secret defaults; it is not loaded automatically.
+
+For local Unsplash development, copy `.env.example` to `.env.local` in the
+repository root and fill in the Access Key locally:
+
+```dotenv
+UNSPLASH_ACCESS_KEY=your-access-key
+```
+
+Git already ignores `.env.local`. The development server reads this key
+server-side. Start development with `npm run dev:all`. Other server settings,
+such as `KIOSK_ADMIN_PASSWORD`, must be supplied in the process environment;
+the development integration only reads `UNSPLASH_ACCESS_KEY` from this file.
+Only the Unsplash **Access Key** is needed; the **Secret Key** is not used.
+
+For production with systemd, keep credentials outside release directories so
+automatic updates do not replace them. For example, create
+`/opt/kiosk/shared/kiosk.env` with the required settings:
+
+```dotenv
+UNSPLASH_ACCESS_KEY=your-access-key
+KIOSK_ADMIN_USERNAME=admin
+KIOSK_ADMIN_PASSWORD=your-management-password
+KIOSK_PORT=8080
+```
+
+Restrict this file's permissions, for example with
+`sudo chmod 600 /opt/kiosk/shared/kiosk.env` on a root-owned file. Edit it
+locally; do not paste credentials into chat or include them in command history.
+Run `sudo systemctl edit kiosk.service` and add this drop-in, preserving existing
+service configuration:
+
+```ini
+[Service]
+EnvironmentFile=/opt/kiosk/shared/kiosk.env
+```
+
+After adding the drop-in, run `sudo systemctl daemon-reload` and
+`sudo systemctl restart kiosk.service`. Restart the service whenever credentials
+change. Systemd loads the environment file before starting the service.
+
+For a manually started production server, `npm start` does not automatically
+load Vite's `.env.local`. Supply the settings in the process environment or load
+an environment file explicitly with Node from the release directory:
+
+```sh
+node --env-file=/opt/kiosk/shared/kiosk.env --experimental-strip-types server.ts
+```
+
+When starting Node manually, the file must be readable by that user; use a
+user-owned file with mode `600` instead of granting broad read access.
+
+### Deck Theme Images
+
+In management, open **Flashcard decks**, select a deck, and choose **Choose image**.
+Search Unsplash, select a photo, then **Save deck**. Images can be replaced or
+removed. Recite displays the saved image on its deck tile. Image metadata and
+photographer credits are included in library imports and exports; existing decks
+without images continue to work.
+
+Set `UNSPLASH_ACCESS_KEY` on the kiosk server as described in
+[Environment Configuration](#environment-configuration).
+
+Search and selection use the same management access protection as deck editing.
+Photos are hotlinked from Unsplash, with photographer and Unsplash attribution
+links, and selections trigger Unsplash's download-tracking endpoint. Image
+display requires internet access. Searches run only on submission or paging,
+not on every keystroke. Unsplash demo applications have a 50-request/hour API
+limit; selecting a photo uses two requests (photo details and download tracking).
+
 ### Host on the LAN with Caddy
 
 Use Caddy as a reverse proxy, not a static file server: the Node.js server is

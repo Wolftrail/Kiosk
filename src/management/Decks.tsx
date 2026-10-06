@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Download, Layers, Pencil, Plus, RefreshCw, Save, Trash2, Upload, X } from 'lucide-react'
+import { Download, ImagePlus, Layers, Pencil, Plus, RefreshCw, Save, Trash2, Upload, X } from 'lucide-react'
 import { ConfirmationDialog, useToast } from '@kiosk/remote-ui'
 import { parseLibrary, type Deck, type Flashcard, type Library } from '../../apps/recite/src/library'
+import ImageCredit from '../../apps/recite/src/ImageCredit'
+import DeckImagePicker from './DeckImagePicker'
 
 const endpoint = '/api/recite/library'
 const newDeck = (): Deck => ({ id: crypto.randomUUID(), name: '', enabled: true })
@@ -17,10 +19,11 @@ export default function Decks({ onDirtyChange }: { onDirtyChange: (dirty: boolea
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState('')
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
+  const [imagePicker, setImagePicker] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const originalDeck = library?.decks.find((entry) => entry.id === deck.id)
   const originalCard = library?.flashcards.find((entry) => entry.id === card.id)
-  const deckDirty = originalDeck ? JSON.stringify(deck) !== JSON.stringify(originalDeck) : !!deck.name
+  const deckDirty = originalDeck ? JSON.stringify(deck) !== JSON.stringify(originalDeck) : !!(deck.name || deck.image)
   const cardDirty = originalCard ? JSON.stringify(card) !== JSON.stringify(originalCard) : !!(card.front || card.back)
   const dirty = deckDirty || cardDirty
   const cards = library?.flashcards.filter((entry) => entry.deckId === deck.id) ?? []
@@ -135,7 +138,8 @@ export default function Decks({ onDirtyChange }: { onDirtyChange: (dirty: boolea
         <form className="management__deck-form" onSubmit={saveDeck}>
           <h2>{originalDeck ? 'Edit deck' : 'New deck'}</h2>
           <label>Deck name<input value={deck.name} required onChange={(event) => setDeck({ ...deck, name: event.target.value })} /></label>
-          <label className="management__deck-enabled"><input type="checkbox" checked={deck.enabled} onChange={(event) => setDeck({ ...deck, enabled: event.target.checked })} />Enabled</label>
+          <div className="management__deck-options"><label className="management__deck-enabled"><input type="checkbox" checked={deck.enabled} onChange={(event) => setDeck({ ...deck, enabled: event.target.checked })} />Enabled</label><div className="management__deck-actions"><button type="button" title={deck.image ? 'Change image' : 'Choose image'} aria-label={deck.image ? 'Change image' : 'Choose image'} onClick={() => setImagePicker(true)}><ImagePlus size={17} /></button>{deck.image && <button type="button" title="Remove theme image" aria-label="Remove theme image" onClick={() => setDeck(({ image: _image, ...rest }) => rest)}><X size={17} /></button>}</div></div>
+          {deck.image && <div className="management__deck-image"><img src={deck.image.thumbnailUrl} alt={deck.image.alt} /><ImageCredit image={deck.image} /></div>}
           <div className="management__deck-actions"><button type="submit" disabled={!deck.name.trim() || !deckDirty}><Save size={17} />Save deck</button>{originalDeck && <button type="button" title="Delete deck" aria-label="Delete deck" onClick={() => setConfirmation({ title: 'Delete this deck?', message: `This permanently deletes "${originalDeck.name}" and its ${cards.length} cards.`, label: 'Delete deck', destructive: true, action: () => { if (library) void save({ decks: library.decks.filter((entry) => entry.id !== deck.id), flashcards: library.flashcards.filter((entry) => entry.deckId !== deck.id) }, (saved) => selectDeck(saved.decks[0] ?? newDeck()), 'Deck deleted.') } })}><Trash2 size={17} /></button>}</div>
         </form>
       </section>
@@ -152,6 +156,7 @@ export default function Decks({ onDirtyChange }: { onDirtyChange: (dirty: boolea
       </form>
     </fieldset>
     <span className="management__deck-status" role="status">{busy ? 'Updating library...' : dirty ? 'Unsaved changes' : library ? 'All changes saved' : ''}</span>
+    {imagePicker && <DeckImagePicker initialQuery={deck.name} onClose={() => setImagePicker(false)} onSelect={(image) => { setDeck((current) => ({ ...current, image })); setImagePicker(false) }} />}
     {confirmation && <ConfirmationDialog className="management__deck-dialog" title={confirmation.title} message={confirmation.message} confirmLabel={confirmation.label} destructive={confirmation.destructive} busy={busy} onCancel={() => setConfirmation(null)} onConfirm={() => { const action = confirmation.action; setConfirmation(null); action() }} />}
   </section>
 }

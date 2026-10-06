@@ -27,6 +27,36 @@
 .management .management__card-form > label { display: flex; flex-direction: column; flex: 1 1 0; gap: 6px; min-height: 0; margin: 0; }
 .management textarea { flex: 1 1 0; width: 100%; min-width: 0; min-height: 0; padding: 10px; resize: none; border: 1px solid #bdcdc4; border-radius: 4px; background: white; color: var(--manage-ink); font: inherit; }
 .management__deck-status { flex-shrink: 0; padding-top: 10px; min-height: 28px; color: var(--manage-muted); }
+.management__deck-image { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.management__deck-options { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+.management__deck-options .management__deck-enabled { display: flex; align-items: center; gap: 6px; }
+.management .management__deck-form h2,.management .management__deck-column-heading h2 { margin: 0; }
+.management__deck-image > img { width: 64px; height: 48px; flex-shrink: 0; object-fit: cover; border-radius: 4px; }
+@media (max-width: 600px) { .management__deck-image { flex-direction: column; align-items: start; } }
+.management .image-credit { font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.management .image-credit a { color: var(--manage-accent); }
+.management__photo-dialog { width: min(840px, calc(100vw - 32px)); height: min(720px, calc(100dvh - 32px)); max-height: calc(100dvh - 32px); padding: 20px; border: 1px solid #bdcdc4; border-radius: 6px; color: var(--manage-ink); background: #f4f6f5; overflow: hidden; }
+.management__photo-dialog[open] { display: flex; flex-direction: column; gap: 12px; }
+.management__photo-dialog::backdrop { background: #14231db3; }
+.management__photo-heading,.management__photo-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0; }
+.management__photo-heading h2 { margin: 0; }
+.management__photo-search { display: grid; gap: 6px; flex-shrink: 0; }
+.management__photo-search > div,.management__photo-footer > div { display: flex; gap: 8px; }
+.management__photo-results { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 16px; flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px; }
+.management__photo-results figure { min-width: 0; margin: 0; }
+.management .management__photo-results button { display: block; width: 100%; padding: 0; overflow: hidden; }
+.management__photo-results img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+.management__photo-results figcaption { padding-top: 6px; }
+.management__photo-dialog .management__notice { margin: 0; flex-shrink: 0; }
+@media (max-height: 680px) {
+	.management__deck-form { gap: 6px; padding-top: 8px; margin-top: 6px; }
+	.management__deck-image > img { height: 48px; }
+	.management.management--decks main { padding-block: 12px; }
+	.management--decks .management__header { padding-block: 12px; }
+	.management__decks > .management__heading { margin-bottom: 10px; }
+	.management__decks .management__heading p { margin-top: 4px; }
+}
+@media (max-width: 600px) { .management__photo-dialog { padding: 12px; } .management__photo-results { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
 @media (max-width: 800px) {
 	.management__deck-workspace { grid-template-columns: minmax(140px, .8fr) minmax(0, 1fr); grid-template-rows: minmax(0, .8fr) minmax(0, 1fr); gap: 16px; }
 	.management__deck-column:first-child { grid-row: 1 / -1; }

@@ -13,7 +13,7 @@ test('extracted runtime migrates legacy data and health-checks without dependenc
   const shared = resolve(directory, 'shared')
   const data = resolve(shared, 'data')
   const repository = fileURLToPath(new URL('../', import.meta.url))
-  for (const filename of ['server.ts', 'storage.ts', 'recite-api.ts', 'schedule-api.ts', 'scripts/migrate-storage.ts', 'apps/jukebox/yt-dlp-plugin.ts', 'apps/recite/src/library.ts', 'packages/remote-ui/src/scheduler.ts']) {
+  for (const filename of ['server.ts', 'storage.ts', 'recite-api.ts', 'schedule-api.ts', 'unsplash-api.ts', 'scripts/migrate-storage.ts', 'apps/jukebox/yt-dlp-plugin.ts', 'apps/recite/src/library.ts', 'packages/remote-ui/src/scheduler.ts']) {
     await mkdir(dirname(resolve(release, filename)), { recursive: true })
     await copyFile(resolve(repository, filename), resolve(release, filename))
   }

@@ -1,4 +1,13 @@
-export type Deck = { id: string; name: string; enabled: boolean }
+export type DeckImage = {
+  id: string
+  url: string
+  thumbnailUrl: string
+  alt: string
+  photographer: string
+  photographerUrl: string
+  photoUrl: string
+}
+export type Deck = { id: string; name: string; enabled: boolean; image?: DeckImage }
 export type Flashcard = {
   id: string
   deckId: string
@@ -25,6 +34,25 @@ function number(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback
 }
 
+function unsplashUrl(value: unknown, host: string): string {
+  const url = new URL(text(value))
+  if (url.protocol !== 'https:' || url.hostname !== host || url.username || url.password || url.port) throw new Error('Invalid Unsplash image or attribution URL.')
+  return url.href
+}
+
+export function parseDeckImage(value: unknown): DeckImage {
+  const image = record(value)
+  return {
+    id: text(image.id),
+    url: unsplashUrl(image.url, 'images.unsplash.com'),
+    thumbnailUrl: unsplashUrl(image.thumbnailUrl, 'images.unsplash.com'),
+    alt: typeof image.alt === 'string' ? image.alt : '',
+    photographer: text(image.photographer),
+    photographerUrl: unsplashUrl(image.photographerUrl, 'unsplash.com'),
+    photoUrl: unsplashUrl(image.photoUrl, 'unsplash.com'),
+  }
+}
+
 export function parseLibrary(value: unknown): Library {
   const source = record(value)
   if (!Array.isArray(source.decks) || !Array.isArray(source.flashcards)) {
@@ -36,7 +64,7 @@ export function parseLibrary(value: unknown): Library {
     const id = text(deck.id)
     if (deckIds.has(id)) throw new Error('Duplicate deck ID.')
     deckIds.add(id)
-    return { id, name: text(deck.name), enabled: deck.enabled !== false }
+    return { id, name: text(deck.name), enabled: deck.enabled !== false, ...(deck.image == null ? {} : { image: parseDeckImage(deck.image) }) }
   })
   const cardIds = new Set<string>()
   const flashcards = source.flashcards.map((entry) => {

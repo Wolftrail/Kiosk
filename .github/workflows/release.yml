@@ -52,7 +52,7 @@ jobs:
           cp -R dist "$RELEASE_DIR/kiosk/"
           rm -rf "$RELEASE_DIR/kiosk/dist/apps/jukebox/videos"
           rm -rf "$RELEASE_DIR/kiosk/dist/apps/recite/data"
-          cp package.json server.ts schedule-api.ts recite-api.ts storage.ts README.md LICENSE "$RELEASE_DIR/kiosk/"
+          cp package.json server.ts schedule-api.ts recite-api.ts unsplash-api.ts storage.ts README.md LICENSE "$RELEASE_DIR/kiosk/"
           cp apps/jukebox/yt-dlp-plugin.ts "$RELEASE_DIR/kiosk/apps/jukebox/"
           cp apps/recite/src/library.ts "$RELEASE_DIR/kiosk/apps/recite/src/"
           cp packages/remote-ui/src/scheduler.ts "$RELEASE_DIR/kiosk/packages/remote-ui/src/"

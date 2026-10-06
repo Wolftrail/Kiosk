@@ -6,6 +6,7 @@ import type { Library } from './library'
 import { advanceSession, applyProgress, createSession, rememberCard, reviewCard } from './session'
 import type { Progress, Rating, Session } from './session'
 import { paginateText } from './paginate'
+import ImageCredit from './ImageCredit'
 
 const PROGRESS_KEY = 'recite.progress.v1'
 const DECKS_KEY = 'recite.decks.v1'
@@ -201,12 +202,16 @@ export default function App() {
                   const due = cards.filter((entry) => isDue(entry)).length
                   const checked = selected.includes(deck.id)
                   const SelectionIcon = checked ? CheckSquare : Square
-                  return <RemoteButton key={deck.id} className="recite-deck" data-tone={index % 3} role="checkbox" aria-checked={checked} onClick={() => toggleDeck(deck.id)}>
+                  return <div key={deck.id} className="recite-deck-tile">
+                  <RemoteButton className="recite-deck" data-tone={index % 3} data-image={!!deck.image} role="checkbox" aria-checked={checked} onClick={() => toggleDeck(deck.id)}>
+                    {deck.image && <img className="recite-deck-image" src={deck.image.url} alt={deck.image.alt} loading="lazy" />}
                     <div className="recite-deck-symbol"><Layers size={32} aria-hidden="true" /><span>{String(index + 1).padStart(2, '0')}</span></div>
                     <h3 dir="auto">{deck.name}</h3>
                     <div className="recite-deck-count"><span>{cards.length} cards</span><span>{due} due</span></div>
                     <SelectionIcon className="recite-deck-check" size={28} aria-hidden="true" />
                   </RemoteButton>
+                  {deck.image && <ImageCredit image={deck.image} />}
+                  </div>
                 })}
               </div>}
             <div className="recite-setup">

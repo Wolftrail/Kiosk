@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { handleApiRequest, protectManagementAccess } from './apps/jukebox/yt-dlp-plugin.ts'
 import { handleScheduleRequest } from './schedule-api.ts'
 import { handleReciteRequest } from './recite-api.ts'
+import { handleUnsplashRequest } from './unsplash-api.ts'
 import { validateStorage } from './scripts/migrate-storage.ts'
 import { dataRoot } from './storage.ts'
 
@@ -103,6 +104,10 @@ const server = createServer((request, response) => {
       response.writeHead(503, { 'content-type': 'application/json', 'cache-control': 'no-store' })
       response.end('{"healthy":false}')
     })
+    return
+  }
+  if (pathname.startsWith('/api/unsplash/')) {
+    protectManagementAccess(request, response, () => void handleUnsplashRequest(request, response), true)
     return
   }
   if (pathname === '/api/recite/library') {

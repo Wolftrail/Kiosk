@@ -34,3 +34,14 @@ test('rejects malformed libraries, duplicate IDs and orphaned cards', () => {
   assert.throws(() => parseLibrary({ ...source, flashcards: [{ ...source.flashcards[0], deckId: 'missing' }] }))
   assert.throws(() => parseLibrary({ ...source, flashcards: [{ ...source.flashcards[0], front: ' ' }] }))
 })
+
+test('preserves optional deck images and rejects unsafe image links', () => {
+  const image = { id: 'photo-one', url: 'https://images.unsplash.com/photo-one?ixid=app', thumbnailUrl: 'https://images.unsplash.com/photo-one?w=400&ixid=app', alt: 'Forest', photographer: 'Alex', photographerUrl: 'https://unsplash.com/@alex?utm_source=kiosk&utm_medium=referral', photoUrl: 'https://unsplash.com/photos/photo-one' }
+  const library = parseLibrary({ ...source, decks: [{ ...source.decks[0], image }, source.decks[1]] })
+  assert.deepEqual(library.decks[0].image, image)
+  assert.deepEqual(parseLibrary(JSON.parse(JSON.stringify(library))), library)
+  assert.equal(library.decks[1].image, undefined)
+  for (const url of ['javascript:alert(1)', 'https://example.com/photo', 'https://images.unsplash.com.evil.test/photo']) {
+    assert.throws(() => parseLibrary({ ...source, decks: [{ ...source.decks[0], image: { ...image, url } }, source.decks[1]] }))
+  }
+})

@@ -46,11 +46,13 @@ test('Recite library persists edits and rejects invalid replacements', async () 
     assert.equal((await fetch(url)).status, 500)
     await writeFile(seed, JSON.stringify(initial))
     assert.deepEqual(await (await fetch(url)).json(), initial)
-    const updated = { decks: [{ id: 'deck', name: 'Renamed', enabled: false }], flashcards: [{ id: 'card', deckId: 'deck', front: 'Question', back: 'Answer', interval: 3, repetitions: 2, easeFactor: 2.5, lastReviewDate: null }] }
+    const image = { id: 'photo-one', url: 'https://images.unsplash.com/photo-one?ixid=app', thumbnailUrl: 'https://images.unsplash.com/photo-one?w=400&ixid=app', alt: 'Forest', photographer: 'Alex', photographerUrl: 'https://unsplash.com/@alex', photoUrl: 'https://unsplash.com/photos/photo-one' }
+    const updated = { decks: [{ id: 'deck', name: 'Renamed', enabled: false, image }], flashcards: [{ id: 'card', deckId: 'deck', front: 'Question', back: 'Answer', interval: 3, repetitions: 2, easeFactor: 2.5, lastReviewDate: null }] }
     assert.equal((await put(updated)).status, 200)
     await writeFile(seed, JSON.stringify(initial))
     assert.deepEqual(await (await fetch(url)).json(), updated)
     assert.deepEqual(JSON.parse(await readFile(join(directory, 'recite-library.json'), 'utf8')), updated)
+    assert.equal((await put({ ...updated, decks: [{ ...updated.decks[0], image: { ...image, photographerUrl: 'javascript:alert(1)' } }] })).status, 400)
     assert.equal((await put({ ...updated, decks: [] })).status, 400)
     assert.equal((await put({ ...updated, decks: [...updated.decks, ...updated.decks] })).status, 400)
     assert.equal((await put({ ...updated, flashcards: [{ ...updated.flashcards[0], front: ' ' }] })).status, 400)
