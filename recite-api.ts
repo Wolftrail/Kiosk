@@ -1,15 +1,15 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseLibrary } from './apps/recite/src/library.ts'
+import { storagePath } from './storage.ts'
 
-const directory = fileURLToPath(new URL('./data/', import.meta.url))
 const seed = fileURLToPath(new URL('./apps/recite/public/data/library.json', import.meta.url))
 const saves = new Set<string>()
 
-export async function handleReciteRequest(request: IncomingMessage, response: ServerResponse, storageDirectory = directory, seedFilename = seed) {
-  const filename = resolve(storageDirectory, 'recite-library.json')
+export async function handleReciteRequest(request: IncomingMessage, response: ServerResponse, storageDirectory?: string, seedFilename = seed) {
+  const filename = storageDirectory ? resolve(storageDirectory, 'recite-library.json') : storagePath('recite', 'library.json')
   const send = (status: number, value: unknown) => {
     response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' })
     response.end(JSON.stringify(value))
@@ -45,7 +45,7 @@ export async function handleReciteRequest(request: IncomingMessage, response: Se
     if (saves.has(filename)) { send(409, { error: 'Another save is in progress. Try again.' }); return }
     saves.add(filename)
     try {
-      await mkdir(storageDirectory, { recursive: true })
+      await mkdir(dirname(filename), { recursive: true })
       await writeFile(`${filename}.tmp`, JSON.stringify(library, null, 2) + '\n')
       await rename(`${filename}.tmp`, filename)
     } finally { saves.delete(filename) }

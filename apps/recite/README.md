@@ -33,12 +33,14 @@ or the format below. Import replaces the whole library after confirmation;
 export downloads the saved library for backup. Browser-local review progress
 is not included in exports.
 
-Saved changes live in `data/recite-library.json` at the repository root and
+Saved changes live at `data/recite/library.json` (or under `KIOSK_DATA_DIR`) and
 survive builds. Runtime libraries and temporary save files are ignored by Git;
 back them up separately or use the export control. A fresh checkout starts
 with an empty library: create decks or import a backup through `/manage`.
 Until the first save, the API can use an optional local
 `apps/recite/public/data/library.json` seed file, which is also ignored by Git.
+Run `npm run storage:migrate` with all kiosk/app servers stopped to align legacy
+data paths. Compatibility links retain the old backing files for code rollback.
 Both development and production use `/api/recite/library`; writes use the same
 management-access protection as schedules. The independent Recite dev server
 also serves this endpoint. Activate **Refresh library** in Recite (or reopen

@@ -1,14 +1,13 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
 import { readSchedules } from './packages/remote-ui/src/scheduler.ts'
+import { storagePath } from './storage.ts'
 
-const directory = fileURLToPath(new URL('./data/', import.meta.url))
 let saving = false
 
-export async function handleScheduleRequest(request: IncomingMessage, response: ServerResponse, storageDirectory = directory) {
-  const filename = resolve(storageDirectory, 'schedules.json')
+export async function handleScheduleRequest(request: IncomingMessage, response: ServerResponse, storageDirectory?: string) {
+  const filename = storageDirectory ? resolve(storageDirectory, 'schedules.json') : storagePath('kiosk', 'schedules.json')
   const send = (status: number, value: unknown) => {
     response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' })
     response.end(JSON.stringify(value))
@@ -39,7 +38,7 @@ export async function handleScheduleRequest(request: IncomingMessage, response: 
     if (saving) { send(409, { error: 'Another save is in progress. Try again.' }); return }
     saving = true
     try {
-      await mkdir(storageDirectory, { recursive: true })
+      await mkdir(dirname(filename), { recursive: true })
       await writeFile(`${filename}.tmp`, JSON.stringify(schedules, null, 2) + '\n')
       await rename(`${filename}.tmp`, filename)
     } finally { saving = false }

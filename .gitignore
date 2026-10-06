@@ -25,7 +25,4 @@ dist-ssr
 /apps/jukebox/public
 /apps/jukebox/data
 /apps/recite/public
-/data/schedules.json
-/data/schedules.json.tmp
-/data/recite-library.json
-/data/recite-library.json.tmp
+/data/

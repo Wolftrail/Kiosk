@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createReadStream } from 'node:fs'
 import { randomUUID, timingSafeEqual } from 'node:crypto'
 import type { Plugin } from 'vite'
+import { storagePath } from '../../storage.ts'
 
 type LibraryVideo = {
   id: string
@@ -36,10 +37,10 @@ const videoPrefix = '/apps/jukebox/videos/'
 const youtubeHosts = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be', 'www.youtu.be'])
 const playbackCompatibleFormatSelector = "bv*[height<=1440][vcodec~='^(avc1|h264)']+ba[acodec~='^(mp4a|aac)']/b[height<=1440][ext=mp4]/bv*[height<=1440]+ba/b[height<=1440]"
 const projectRoot = dirname(fileURLToPath(import.meta.url))
-const videoDirectory = resolve(projectRoot, 'public/videos')
-const publicationDirectory = resolve(dirname(videoDirectory), '.jukebox-staging')
-const libraryPath = resolve(projectRoot, 'data/library.json')
-const tagsPath = resolve(projectRoot, 'data/tags.json')
+const videoDirectory = storagePath('jukebox', 'videos')
+const publicationDirectory = storagePath('jukebox', 'staging')
+const libraryPath = storagePath('jukebox', 'library.json')
+const tagsPath = storagePath('jukebox', 'tags.json')
 let libraryMutation = Promise.resolve()
 const inFlightDownloads = new Map<string, Promise<LibraryVideo>>()
 const thumbnailJobs = new Map<string, Promise<string | undefined>>()
@@ -389,7 +390,7 @@ function findTag(tags: string[], value: string) {
 }
 
 async function writeTags(tags: string[]) {
-  await mkdir(resolve(projectRoot, 'data'), { recursive: true })
+  await mkdir(dirname(libraryPath), { recursive: true })
   await writeFile(tagsPath, JSON.stringify(tags, null, 2), 'utf8')
 }
 
@@ -943,7 +944,7 @@ async function updateLibrary(mutate: (library: Array<LibraryVideo & { tags: stri
   let updatedLibrary: LibraryVideo[] = []
   const mutation = libraryMutation.then(async () => {
     updatedLibrary = mutate(await readLibrary())
-    await mkdir(resolve(projectRoot, 'data'), { recursive: true })
+    await mkdir(dirname(libraryPath), { recursive: true })
     await writeFile(libraryPath, JSON.stringify(updatedLibrary, null, 2), 'utf8')
   })
   libraryMutation = mutation.catch(() => undefined)

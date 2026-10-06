@@ -15,6 +15,12 @@ const videoId = 'AbCdEf12345'
 const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
 const jpegFixture = Buffer.from('jpeg-fixture')
 
+async function copyPlugin(root: string) {
+  const source = await readFile(new URL('./yt-dlp-plugin.ts', import.meta.url), 'utf8')
+  await writeFile(join(root, 'yt-dlp-plugin.ts'), source.replace("'../../storage.ts'", "'./storage.ts'"))
+  await copyFile(new URL('./tests/storage-fixture.ts', import.meta.url), join(root, 'storage.ts'))
+}
+
 test('real FFmpeg brings quiet and loud recordings to the same loudness', async (t) => {
   if (childProcess.spawnSync('ffmpeg', ['-version'], { windowsHide: true }).status !== 0) {
     t.skip('FFmpeg is not installed.')
@@ -25,7 +31,7 @@ test('real FFmpeg brings quiet and loud recordings to the same loudness', async 
   await mkdir(join(root, 'public', 'videos'), { recursive: true })
   await mkdir(join(root, 'data'), { recursive: true })
   await writeFile(join(root, 'package.json'), JSON.stringify({ type: 'module' }))
-  await copyFile(new URL('./yt-dlp-plugin.ts', import.meta.url), join(root, 'yt-dlp-plugin.ts'))
+  await copyPlugin(root)
   const ffmpeg = (args: string[]) => {
     const result = childProcess.spawnSync('ffmpeg', ['-nostdin', '-hide_banner', ...args], { encoding: 'utf8', windowsHide: true })
     assert.equal(result.status, 0, result.stderr)
@@ -268,7 +274,7 @@ async function createHarness(t: { after: (callback: () => Promise<void>) => void
   await mkdir(videoDirectory, { recursive: true })
   await mkdir(dataDirectory, { recursive: true })
   await writeFile(join(root, 'package.json'), JSON.stringify({ type: 'module' }))
-  await copyFile(new URL('./yt-dlp-plugin.ts', import.meta.url), join(root, 'yt-dlp-plugin.ts'))
+  await copyPlugin(root)
   await writeFile(join(dataDirectory, 'library.json'), JSON.stringify(options.library ?? []))
   await writeFile(join(dataDirectory, 'tags.json'), JSON.stringify(options.tags ?? []))
 

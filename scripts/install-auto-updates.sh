@@ -18,7 +18,7 @@ fail() {
 }
 
 if (( EUID != 0 )); then fail 'Run this setup script with sudo.'; fi
-for command_name in systemctl realpath install cp mv ln chown id curl jq sha256sum tar visudo; do
+for command_name in systemctl realpath install cp mv ln chown id curl jq sha256sum tar visudo runuser node; do
   command -v "$command_name" >/dev/null 2>&1 || fail "Required command not found: $command_name"
 done
 
@@ -48,20 +48,26 @@ version=$(<"$PACKAGE_ROOT/VERSION")
 
 service_was_active=0
 if systemctl is-active --quiet "$KIOSK_SERVICE"; then service_was_active=1; fi
+service_stop_attempted=0
+setup_complete=0
 recover_on_failure() {
   local status=$?
-  if (( status != 0 )); then
-    if [[ -f "$INSTALL_ROOT/releases/legacy/server.ts" && ! -L "$INSTALL_ROOT/current" ]]; then
-      ln -s releases/legacy "$INSTALL_ROOT/current" 2>/dev/null || true
-      ln -s current/server.ts "$INSTALL_ROOT/server.ts" 2>/dev/null || true
-      ln -s current/package.json "$INSTALL_ROOT/package.json" 2>/dev/null || true
+  trap - EXIT
+  if (( status != 0 && service_stop_attempted && ! setup_complete )); then
+    if [[ -f "$INSTALL_ROOT/releases/legacy/server.ts" ]]; then
+      local rollback_link="$INSTALL_ROOT/.current.rollback.$$"
+      ln -sfn releases/legacy "$rollback_link" 2>/dev/null || true
+      mv -Tf -- "$rollback_link" "$INSTALL_ROOT/current" 2>/dev/null || true
+      ln -sfn current/server.ts "$INSTALL_ROOT/server.ts" 2>/dev/null || true
+      ln -sfn current/package.json "$INSTALL_ROOT/package.json" 2>/dev/null || true
     fi
-    if (( service_was_active )); then systemctl start "$KIOSK_SERVICE" || true; fi
+    if (( service_was_active )); then systemctl restart "$KIOSK_SERVICE" || true; fi
   fi
   return "$status"
 }
 trap recover_on_failure EXIT
 
+service_stop_attempted=1
 systemctl stop "$KIOSK_SERVICE"
 mkdir -p "$INSTALL_ROOT/releases/legacy" "$INSTALL_ROOT/shared"
 
@@ -112,7 +118,19 @@ done
 service_group=$(id -gn "$KIOSK_USER")
 chown -R --no-dereference "$KIOSK_USER:$service_group" "$INSTALL_ROOT/releases"
 chown "$KIOSK_USER:$service_group" "$INSTALL_ROOT" "$INSTALL_ROOT/releases" "$INSTALL_ROOT/shared"
-chown "$KIOSK_USER:$service_group" "$INSTALL_ROOT/shared/data" "$INSTALL_ROOT/shared/apps/jukebox/data" "$INSTALL_ROOT/shared/apps/jukebox/public/videos"
+chown -R "$KIOSK_USER:$service_group" "$INSTALL_ROOT/shared/data" "$INSTALL_ROOT/shared/apps/jukebox/data" "$INSTALL_ROOT/shared/apps/jukebox/public/videos"
+
+run_storage_tool() {
+  runuser -u "$KIOSK_USER" -- env \
+    KIOSK_DATA_DIR="$INSTALL_ROOT/shared/data" \
+    KIOSK_LEGACY_ROOT="$INSTALL_ROOT/shared" \
+    "$(command -v node)" --experimental-strip-types \
+    "$INSTALL_ROOT/releases/$version/scripts/migrate-storage.ts" "$@"
+}
+
+run_storage_tool
+run_storage_tool --check
+
 ln -s "releases/$version" "$INSTALL_ROOT/current"
 ln -s current/server.ts "$INSTALL_ROOT/server.ts"
 ln -s current/package.json "$INSTALL_ROOT/package.json"
@@ -120,7 +138,9 @@ ln -s current/package.json "$INSTALL_ROOT/package.json"
 health_check() {
   local attempt
   for attempt in {1..30}; do
-    if curl --fail --silent --max-time 2 "http://127.0.0.1:$KIOSK_PORT/api/schedules" >/dev/null; then return 0; fi
+    if curl --fail --silent --max-time 2 "http://127.0.0.1:$KIOSK_PORT/api/schedules" >/dev/null \
+      && curl --fail --silent --max-time 2 "http://127.0.0.1:$KIOSK_PORT/api/recite/library" >/dev/null \
+      && curl --fail --silent --max-time 2 "http://127.0.0.1:$KIOSK_PORT/api/health" >/dev/null; then return 0; fi
     sleep 1
   done
   return 1
@@ -140,7 +160,8 @@ service_group=$(id -gn "$KIOSK_USER")
 sed -e "s/@KIOSK_USER@/$KIOSK_USER/g" -e "s/@KIOSK_GROUP@/$service_group/g" "$service_template" > /etc/systemd/system/kiosk-update.service
 install -m 0644 "$INSTALL_ROOT/current/deploy/systemd/kiosk-update.timer" /etc/systemd/system/kiosk-update.timer
 sudoers_file=/etc/sudoers.d/kiosk-update
-printf '%s ALL=(root) NOPASSWD: /usr/bin/systemctl restart %s\n' "$KIOSK_USER" "$KIOSK_SERVICE" > "$sudoers_file"
+printf '%s ALL=(root) NOPASSWD: /usr/bin/systemctl stop %s, /usr/bin/systemctl start %s, /usr/bin/systemctl restart %s\n' \
+  "$KIOSK_USER" "$KIOSK_SERVICE" "$KIOSK_SERVICE" "$KIOSK_SERVICE" > "$sudoers_file"
 chmod 0440 "$sudoers_file"
 visudo -cf "$sudoers_file"
 printf 'KIOSK_ROOT=%s\nKIOSK_SERVICE=%s\nKIOSK_PORT=%s\nKIOSK_KEEP_RELEASES=%s\n' \
@@ -148,5 +169,6 @@ printf 'KIOSK_ROOT=%s\nKIOSK_SERVICE=%s\nKIOSK_PORT=%s\nKIOSK_KEEP_RELEASES=%s\n
 chmod 0644 /etc/kiosk-auto-update.conf
 systemctl daemon-reload
 systemctl enable --now kiosk-update.timer
+setup_complete=1
 trap - EXIT
 log "Installed $version, preserved the previous installation as releases/legacy, and enabled daily updates."

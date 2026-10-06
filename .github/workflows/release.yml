@@ -48,12 +48,15 @@ jobs:
           RELEASE_DIR: ${{ runner.temp }}/kiosk-release
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          mkdir -p "$RELEASE_DIR/kiosk/apps/jukebox" "$RELEASE_DIR/kiosk/packages/remote-ui/src" "$RELEASE_DIR/kiosk/scripts" "$RELEASE_DIR/kiosk/deploy/systemd"
+          mkdir -p "$RELEASE_DIR/kiosk/apps/jukebox" "$RELEASE_DIR/kiosk/apps/recite/src" "$RELEASE_DIR/kiosk/packages/remote-ui/src" "$RELEASE_DIR/kiosk/scripts" "$RELEASE_DIR/kiosk/deploy/systemd"
           cp -R dist "$RELEASE_DIR/kiosk/"
-          cp package.json server.ts schedule-api.ts README.md LICENSE "$RELEASE_DIR/kiosk/"
+          rm -rf "$RELEASE_DIR/kiosk/dist/apps/jukebox/videos"
+          rm -rf "$RELEASE_DIR/kiosk/dist/apps/recite/data"
+          cp package.json server.ts schedule-api.ts recite-api.ts storage.ts README.md LICENSE "$RELEASE_DIR/kiosk/"
           cp apps/jukebox/yt-dlp-plugin.ts "$RELEASE_DIR/kiosk/apps/jukebox/"
+          cp apps/recite/src/library.ts "$RELEASE_DIR/kiosk/apps/recite/src/"
           cp packages/remote-ui/src/scheduler.ts "$RELEASE_DIR/kiosk/packages/remote-ui/src/"
-          cp scripts/kiosk-update.sh scripts/install-auto-updates.sh "$RELEASE_DIR/kiosk/scripts/"
+          cp scripts/kiosk-update.sh scripts/install-auto-updates.sh scripts/migrate-storage.ts "$RELEASE_DIR/kiosk/scripts/"
           cp deploy/systemd/kiosk-update.service deploy/systemd/kiosk-update.timer "$RELEASE_DIR/kiosk/deploy/systemd/"
           printf '%s\n' "$RELEASE_TAG" > "$RELEASE_DIR/kiosk/VERSION"
           tar -czf "$RELEASE_DIR/kiosk.tar.gz" -C "$RELEASE_DIR" kiosk
@@ -68,6 +71,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/kiosk-smoke"
           tar -xzf "$RELEASE_DIR/kiosk.tar.gz" -C "$RUNNER_TEMP/kiosk-smoke"
           cd "$RUNNER_TEMP/kiosk-smoke/kiosk"
+          export KIOSK_DATA_DIR="$RUNNER_TEMP/kiosk-smoke-data"
+          node --experimental-strip-types scripts/migrate-storage.ts
+          node --experimental-strip-types scripts/migrate-storage.ts --check
           node --experimental-strip-types server.ts > "$RUNNER_TEMP/kiosk-server.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true; cat "$RUNNER_TEMP/kiosk-server.log"' EXIT
@@ -76,6 +82,9 @@ jobs:
             curl --fail --silent --show-error "http://localhost:18080$path" | grep -qi '<!doctype html>'
           done
           curl --fail --silent --show-error http://localhost:18080/api/schedules | jq -e '.schedules == []'
+          curl --fail --silent --show-error http://localhost:18080/api/recite/library > /dev/null
+          curl --fail --silent --show-error http://localhost:18080/apps/jukebox/api/videos > /dev/null
+          curl --fail --silent --show-error http://localhost:18080/api/health | jq -e '.healthy == true'
 
       - name: Publish GitHub release
         env:

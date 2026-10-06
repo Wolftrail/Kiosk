@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url'
 import { handleApiRequest, protectManagementAccess } from './apps/jukebox/yt-dlp-plugin.ts'
 import { handleScheduleRequest } from './schedule-api.ts'
 import { handleReciteRequest } from './recite-api.ts'
+import { validateStorage } from './scripts/migrate-storage.ts'
+import { dataRoot } from './storage.ts'
 
 const projectRoot = fileURLToPath(new URL('.', import.meta.url))
 const distRoot = resolve(projectRoot, 'dist')
@@ -93,6 +95,16 @@ async function serveStatic(request: IncomingMessage, response: ServerResponse, p
 
 const server = createServer((request, response) => {
   const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+  if (pathname === '/api/health' && request.method === 'GET') {
+    void validateStorage(dataRoot).then(() => {
+      response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
+      response.end('{"healthy":true}')
+    }).catch(() => {
+      response.writeHead(503, { 'content-type': 'application/json', 'cache-control': 'no-store' })
+      response.end('{"healthy":false}')
+    })
+    return
+  }
   if (pathname === '/api/recite/library') {
     if (request.method === 'GET') void handleReciteRequest(request, response)
     else protectManagementAccess(request, response, () => void handleReciteRequest(request, response), true)
@@ -116,5 +128,6 @@ const server = createServer((request, response) => {
 
 const port = Number(process.env.KIOSK_PORT || 8080)
 server.listen(port, '0.0.0.0', () => {
-  console.log(`Kiosk server listening on http://0.0.0.0:${port}`)
+  const address = server.address()
+  console.log(`Kiosk server listening on http://0.0.0.0:${address && typeof address === 'object' ? address.port : port}`)
 })

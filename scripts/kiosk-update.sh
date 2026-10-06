@@ -14,7 +14,7 @@ log() {
   printf '[kiosk-update] %s\n' "$*"
 }
 
-for command_name in curl jq sha256sum tar sudo install find sort; do
+for command_name in curl jq sha256sum tar sudo install find sort flock node; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     log "Required command not found: $command_name"
     exit 1
@@ -23,6 +23,12 @@ done
 
 if [[ ! -L "$CURRENT" || ! -f "$CURRENT/VERSION" ]]; then
   log "Versioned installation not found at $CURRENT. Run install-auto-updates.sh first."
+  exit 1
+fi
+
+exec 9>"$KIOSK_ROOT/.update.lock"
+if ! flock -n 9; then
+  log "Another updater is already running for $KIOSK_ROOT."
   exit 1
 fi
 
@@ -56,11 +62,29 @@ fi
 
 download_dir=$(mktemp -d)
 staging_dir=''
+service_stopped=0
+activation_attempted=0
+update_succeeded=0
 cleanup() {
   rm -rf -- "$download_dir"
   if [[ -n "$staging_dir" ]]; then rm -rf -- "$staging_dir"; fi
 }
-trap cleanup EXIT
+rollback_on_failure() {
+  local status=$?
+  trap - EXIT
+  if (( status != 0 && service_stopped && ! update_succeeded )); then
+    log "Update failed; restoring $current_version and restarting Kiosk."
+    if (( activation_attempted )); then atomic_switch "$previous_target" || log 'Could not restore the previous current symlink.'; fi
+    if ! sudo -n /usr/bin/systemctl restart "$KIOSK_SERVICE"; then
+      log 'Rollback restart failed.'
+    elif ! schedule_health_check; then
+      log 'Previous release did not pass its schedule health check.'
+    fi
+  fi
+  cleanup
+  return "$status"
+}
+trap rollback_on_failure EXIT
 
 archive_url="$RELEASE_DOWNLOAD/$latest_version/kiosk.tar.gz"
 curl --fail --silent --show-error --location --retry 3 "$archive_url" -o "$download_dir/kiosk.tar.gz"
@@ -125,33 +149,50 @@ atomic_switch() {
 health_check() {
   local attempt
   for attempt in {1..30}; do
+    if curl --fail --silent --max-time 2 "http://127.0.0.1:$KIOSK_PORT/api/schedules" >/dev/null \
+      && curl --fail --silent --max-time 2 "http://127.0.0.1:$KIOSK_PORT/api/recite/library" >/dev/null \
+      && curl --fail --silent --max-time 2 "http://127.0.0.1:$KIOSK_PORT/api/health" >/dev/null; then return 0; fi
+    sleep 1
+  done
+  return 1
+}
+
+schedule_health_check() {
+  local attempt
+  for attempt in {1..30}; do
     if curl --fail --silent --max-time 2 "http://127.0.0.1:$KIOSK_PORT/api/schedules" >/dev/null; then return 0; fi
     sleep 1
   done
   return 1
 }
 
-restart_kiosk() {
-  sudo -n /usr/bin/systemctl restart "$KIOSK_SERVICE"
-}
-
 log "Activating $latest_version (currently $current_version)."
-atomic_switch "releases/$latest_version"
-if ! restart_kiosk || ! health_check; then
-  log "Health check failed; restoring $current_version."
-  atomic_switch "$previous_target"
-  if ! restart_kiosk || ! health_check; then
-    log "Rollback restart failed. Previous release remains selected at $CURRENT."
+for service_action in stop start restart; do
+  if ! sudo -n -l /usr/bin/systemctl "$service_action" "$KIOSK_SERVICE" >/dev/null 2>&1; then
+    log "Updater cannot run systemctl $service_action $KIOSK_SERVICE without a password."
+    log "Ask an administrator to update /etc/sudoers.d/kiosk-update to allow exact stop, start, and restart commands, then retry."
+    exit 1
   fi
-  exit 1
-fi
+done
+
+service_stopped=1
+sudo -n /usr/bin/systemctl stop "$KIOSK_SERVICE"
+KIOSK_DATA_DIR="$KIOSK_ROOT/shared/data" KIOSK_LEGACY_ROOT="$KIOSK_ROOT/shared" \
+  node --experimental-strip-types "$target_release/scripts/migrate-storage.ts"
+KIOSK_DATA_DIR="$KIOSK_ROOT/shared/data" KIOSK_LEGACY_ROOT="$KIOSK_ROOT/shared" \
+  node --experimental-strip-types "$target_release/scripts/migrate-storage.ts" --check
+
+activation_attempted=1
+atomic_switch "releases/$latest_version"
+sudo -n /usr/bin/systemctl start "$KIOSK_SERVICE"
+health_check || { log 'New release failed the schedule, Recite, or Jukebox health check.'; exit 1; }
 
 if [[ -f "$target_release/scripts/kiosk-update.sh" ]]; then
   install -m 0755 "$target_release/scripts/kiosk-update.sh" "$KIOSK_ROOT/shared/kiosk-update.sh.new"
   mv -f -- "$KIOSK_ROOT/shared/kiosk-update.sh.new" "$KIOSK_ROOT/shared/kiosk-update.sh"
 fi
 
-active_release=${CURRENT##*/}
+active_release=${target_release##*/}
 previous_release=${previous_target##*/}
 mapfile -t installed_releases < <(find "$RELEASES" -mindepth 1 -maxdepth 1 -type d ! -name '.staging.*' -printf '%f\n' | sort -V)
 remaining=${#installed_releases[@]}
@@ -163,3 +204,4 @@ for release_name in "${installed_releases[@]}"; do
 done
 
 log "Successfully installed $latest_version. Previous release retained: $previous_release."
+update_succeeded=1

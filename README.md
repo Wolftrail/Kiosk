@@ -45,9 +45,13 @@ npm start
 The archive includes the built kiosk, all apps, and the production server. No
 `npm install` or build is needed. Install Node.js 22.18 or newer, plus yt-dlp and
 FFmpeg for downloads, as described below. Local videos, library metadata,
-schedules, credentials, and Node.js itself are not bundled. Extract updates into
-a new directory and migrate `data/`, `apps/jukebox/data/`, and
-`apps/jukebox/public/videos/` from the old installation while the server is stopped.
+schedules, credentials, and Node.js itself are not bundled. For a manual Linux
+upgrade, stop the server and run the migration script from the candidate release
+with `KIOSK_DATA_DIR` set to the persistent data directory and
+`KIOSK_LEGACY_ROOT` set to the legacy installation root. In a versioned install,
+these must be `/opt/kiosk/shared/data` and `/opt/kiosk/shared`, respectively;
+the legacy Jukebox directories are under `shared/apps/jukebox/`. The migration
+validates metadata and media and keeps legacy-path symlinks for release rollback.
 
 ### Automatic updates on Linux Mint
 
@@ -83,10 +87,24 @@ sudo bash kiosk/scripts/install-auto-updates.sh /opt/kiosk "$PWD/kiosk" kiosk.se
 ```
 
 The setup stops Kiosk while it moves the existing schedules, library metadata,
-and videos into shared storage. It then starts the tagged release, verifies
-`http://127.0.0.1:8080/api/schedules`, and enables `kiosk-update.timer`. The
-daily updater runs as the Kiosk service user; a sudoers rule permits it to
-restart only `kiosk.service`. Updates and rollbacks are logged by
+and videos into shared storage. It migrates and checks that data as the service
+user before starting the tagged release, then checks schedules, Recite, and
+the storage health endpoint before enabling `kiosk-update.timer`. The daily updater runs as
+the Kiosk service user and takes a lock to prevent overlapping updates. Its
+sudoers rule permits only `stop`, `start`, and `restart` for `kiosk.service`.
+If an existing installation was configured by an older updater that allowed
+only `restart`, an administrator must update `/etc/sudoers.d/kiosk-update`
+before the first update. Run `sudo visudo -f /etc/sudoers.d/kiosk-update` and
+replace the old rule with the following, substituting the actual service user
+and service name:
+
+```sudoers
+wolf ALL=(root) NOPASSWD: /usr/bin/systemctl stop kiosk.service, /usr/bin/systemctl start kiosk.service, /usr/bin/systemctl restart kiosk.service
+```
+
+The updater checks all three permissions before stopping the service and prints
+this upgrade guidance if they are missing; it cannot grant itself privileges.
+Updates and rollbacks are logged by
 `kiosk-update.service` in the system journal:
 
 ```sh
@@ -208,11 +226,66 @@ upgrades to HTTPS, add a site-specific exception to its automatic HTTPS setting
 and use the explicit HTTP URL. Cached redirects or site data can also interfere;
 try a private window before clearing site data, which can reset app progress.
 
+## Runtime Data And Migrations
+
+All editable server data uses `KIOSK_DATA_DIR`, defaulting to the repository's
+ignored `data/` directory. Shipped Scripture datasets and Workout assets remain
+part of their apps. Browser-local progress/preferences and temporary playback
+state are not moved or included in server backups.
+
+```text
+data/
+	storage-version.json
+	kiosk/schedules.json
+	recite/library.json
+	jukebox/library.json
+	jukebox/tags.json
+	jukebox/videos/
+	jukebox/staging/
+	backups/storage-v0/
+```
+
+For local development, stop every kiosk and app server, then run:
+
+```sh
+npm run storage:migrate
+npm run storage:check
+npm run dev:all
+```
+
+Migration 1 retains flat schedule/Recite files as backing files and links their
+new paths to them. Jukebox directories move within the same filesystem and old
+paths link back to the new locations, avoiding duplicate video collections.
+Keep these compatibility links during the rollback window: both old and new
+releases must see edits made after upgrading. Windows requires permission to
+create file symlinks (for example, Developer Mode); migration refuses before
+moving data when that permission is unavailable. Cross-filesystem moves and
+conflicting old/new data are refused rather than merged or overwritten.
+
+The version marker is written only after validation. Repeating a completed
+migration validates without replacing data. Interrupted runs can be resumed;
+a dead-process lock is reclaimed, while an unknown-owner lock needs manual
+inspection after all writers are stopped. Never remove an active migration lock.
+Newer storage versions are rejected by older migration/resolver code.
+
+Metadata snapshots are kept in `backups/storage-v0/`; media is not duplicated.
+For disaster recovery, back up the entire data root and follow symlinks when
+archiving files. Metadata snapshots alone are not a full backup. A failed release
+rolls back code, not data: restoring a stale snapshot could erase newer edits.
+Future incompatible schema changes require another numbered migration and an
+explicit rollback policy before deployment.
+
+Production uses `/opt/kiosk/shared/data`, linked into each release. Manual
+upgrades should run the candidate migration as the service user with
+`KIOSK_LEGACY_ROOT=/opt/kiosk/shared` while the service is stopped. `--check` and
+`GET /api/health` validate metadata and referenced media; the endpoint returns
+only a health flag and does not require management credentials.
+
 ## App Schedules
 
 Open **Management > Schedules** to add an app, local kiosk time, and weekdays.
 Schedules can be enabled, edited, deleted, or tested in the management browser.
-Definitions are stored on the server in `data/schedules.json`, so management from
+Definitions are stored on the server at `data/kiosk/schedules.json`, so management from
 a phone or laptop updates the kiosk too. The kiosk refreshes definitions every
 30 seconds. Writes use the same access protection as the management screen.
 
