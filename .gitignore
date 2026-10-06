@@ -22,8 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-/apps/jukebox/public/videos
-/apps/jukebox/public/.jukebox-staging
+/apps/jukebox/public
 /apps/jukebox/data
+/apps/recite/public
 /data/schedules.json
 /data/schedules.json.tmp
