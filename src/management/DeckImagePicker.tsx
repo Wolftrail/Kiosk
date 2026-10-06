@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, type FormEvent } from 'react'
 import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 import { parseDeckImage, type DeckImage } from '../../apps/recite/src/library'
 import ImageCredit from '../../apps/recite/src/ImageCredit'
@@ -6,7 +6,8 @@ import ImageCredit from '../../apps/recite/src/ImageCredit'
 export default function DeckImagePicker({ initialQuery, onSelect, onClose }: { initialQuery: string; onSelect: (image: DeckImage) => void; onClose: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const requestRef = useRef<AbortController | null>(null)
-  const [query, setQuery] = useState(initialQuery)
+  const initialTerm = initialQuery.trim().slice(0, 200)
+  const [query, setQuery] = useState(initialTerm)
   const [search, setSearch] = useState('')
   const [results, setResults] = useState<DeckImage[]>([])
   const [page, setPage] = useState(1)
@@ -14,13 +15,16 @@ export default function DeckImagePicker({ initialQuery, onSelect, onClose }: { i
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [searched, setSearched] = useState(false)
+  const searchOnOpen = useEffectEvent(() => { if (initialTerm) void find(initialTerm) })
 
   useEffect(() => {
+    let active = true
     const previousFocus = document.activeElement as HTMLElement | null
     const dialog = dialogRef.current
     dialog?.showModal()
     dialog?.querySelector('input')?.focus({ preventScroll: true })
-    return () => { requestRef.current?.abort(); dialog?.close(); if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true }) }
+    queueMicrotask(() => { if (active) searchOnOpen() })
+    return () => { active = false; requestRef.current?.abort(); dialog?.close(); if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true }) }
   }, [])
 
   async function find(term: string, nextPage = 1) {

@@ -205,7 +205,8 @@ user-owned file with mode `600` instead of granting broad read access.
 ### Deck Theme Images
 
 In management, open **Flashcard decks**, select a deck, and choose **Choose image**.
-Search Unsplash, select a photo, then **Save deck**. Images can be replaced or
+The picker automatically searches Unsplash using the deck name. For an unnamed
+deck, enter a search term manually. Select a photo, then **Save deck**. Images can be replaced or
 removed. Recite displays the saved image on its deck tile. Image metadata and
 photographer credits are included in library imports and exports; existing decks
 without images continue to work.
@@ -216,8 +217,9 @@ Set `UNSPLASH_ACCESS_KEY` on the kiosk server as described in
 Search and selection use the same management access protection as deck editing.
 Photos are hotlinked from Unsplash, with photographer and Unsplash attribution
 links, and selections trigger Unsplash's download-tracking endpoint. Image
-display requires internet access. Searches run only on submission or paging,
-not on every keystroke. Unsplash demo applications have a 50-request/hour API
+display requires internet access. Searches run when opening a named deck's
+picker, submitting a search, or paging, not on every keystroke.
+Unsplash demo applications have a 50-request/hour API
 limit; selecting a photo uses two requests (photo details and download tracking).
 
 ### Host on the LAN with Caddy
