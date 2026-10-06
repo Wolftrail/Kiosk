@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { exercises, formatTime, getStage, TOTAL_SECONDS } from '../src/routine.ts'
+import { exercises, formatTime, getNextExerciseElapsed, getStage, TOTAL_SECONDS } from '../src/routine.ts'
 
 test('routine lasts exactly seven minutes with twelve exercise intervals', () => {
   assert.equal(TOTAL_SECONDS, 420)
@@ -30,6 +30,19 @@ test('stage boundaries select the upcoming exercise during rest', () => {
   assert.equal(getStage(420).kind, 'complete')
   assert.equal(getStage(1000).kind, 'complete')
   assert.equal(getStage(-1).remaining, 5)
+})
+
+test('next exercise starts the previewed move or advances with a transition', () => {
+  assert.equal(getNextExerciseElapsed(0), 5)
+  assert.equal(getNextExerciseElapsed(12), 35)
+  assert.equal(getNextExerciseElapsed(35), 40)
+  assert.equal(getNextExerciseElapsed(72), 75)
+  assert.equal(getNextExerciseElapsed(400), TOTAL_SECONDS)
+  assert.equal(getNextExerciseElapsed(TOTAL_SECONDS), TOTAL_SECONDS)
+  for (let elapsed = 0; elapsed < TOTAL_SECONDS; elapsed += 1) {
+    assert.ok(getNextExerciseElapsed(elapsed) > elapsed)
+    assert.ok(getNextExerciseElapsed(elapsed) <= TOTAL_SECONDS)
+  }
 })
 
 test('remaining time rounds up and never displays negative values', () => {

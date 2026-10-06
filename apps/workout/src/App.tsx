@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ConfirmationDialog, finishScheduledApp, getScheduledLaunch, RemoteAppShell, RemoteButton } from '@kiosk/remote-ui'
-import { Activity, Check, Clock3, Pause, Play, RotateCcw, Square, Timer, Volume2, VolumeX } from 'lucide-react'
-import { exercises, formatTime, getStage, TOTAL_SECONDS } from './routine'
+import { Activity, ArrowLeft, Check, Clock3, Pause, Play, RotateCcw, SkipForward, Volume2, VolumeX } from 'lucide-react'
+import { exercises, EXERCISE_SECONDS, formatTime, getNextExerciseElapsed, getStage, TOTAL_SECONDS } from './routine'
 import './App.css'
 
 function App() {
@@ -15,28 +15,29 @@ function App() {
   const audioRef = useRef<AudioContext | null>(null)
   const exitTarget = useRef<string | null>(null)
   const previousSignal = useRef('')
-  const viewportRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const [contentScale, setContentScale] = useState(1)
   const stage = getStage(elapsed)
   const complete = stage.kind === 'complete'
   const active = status !== 'idle' && !complete
   const exercise = exercises[stage.exerciseIndex]
   const imageUrl = (id: string) => `${import.meta.env.BASE_URL}exercises/${id}.png`
 
-  useLayoutEffect(() => {
-    const viewport = viewportRef.current
-    const content = contentRef.current
-    if (!viewport || !content) return
-    const fitContent = () => {
-      setContentScale(Math.min(1, viewport.clientHeight / Math.max(1, content.scrollHeight), viewport.clientWidth / Math.max(1, content.scrollWidth)))
-    }
-    const observer = new ResizeObserver(fitContent)
-    observer.observe(viewport)
-    observer.observe(content)
-    fitContent()
-    return () => observer.disconnect()
-  }, [])
+  const nextExercise = exercises[stage.exerciseIndex + 1]
+
+  function next() {
+    const currentElapsed = status === 'running'
+      ? clock.current.accumulated + (performance.now() - clock.current.started) / 1000
+      : elapsed
+    clock.current.accumulated = getNextExerciseElapsed(currentElapsed)
+    clock.current.started = performance.now()
+    setElapsed(clock.current.accumulated)
+  }
+
+  function back() {
+    if (exitOpen) cancelExit()
+    else if (active) requestExit(scheduledLaunch?.returnUrl ?? '/')
+    else if (!finishScheduledApp('workout')) window.location.assign('/')
+    return true
+  }
 
   function pause() {
     if (status !== 'running' || complete) return
@@ -67,7 +68,6 @@ function App() {
 
   function cancelExit() {
     setExitOpen(false)
-    primaryRef.current?.focus()
   }
 
   function finishExit() {
@@ -105,8 +105,8 @@ function App() {
   }, [status, complete])
 
   useEffect(() => {
-    primaryRef.current?.focus()
-  }, [active, complete])
+    if (!exitOpen) primaryRef.current?.focus()
+  }, [active, complete, exitOpen])
 
   const signal = `${stage.kind}:${stage.exerciseIndex}:${stage.switchSide}`
   useEffect(() => {
@@ -168,77 +168,56 @@ function App() {
           setSound(!sound)
         }}>{sound ? <Volume2 /> : <VolumeX />}</RemoteButton>
       }
-      onBack={() => {
-        if (exitOpen) cancelExit()
-        else if (active) requestExit('/')
-        else if (!finishScheduledApp('workout')) window.location.assign('/')
-        return true
-      }}
+      onBack={back}
     >
-      <div className="workout-topline">
-        <span className="workout-session-label"><Activity aria-hidden="true" />{complete ? '12 / 12 complete' : active ? `Move ${String(stage.exerciseIndex + 1).padStart(2, '0')} / 12` : '12 moves. One session.'}</span>
-      </div>
-
-      <div className="workout-fit-viewport" ref={viewportRef}>
-      <div className="workout-fit-content" ref={contentRef} style={{ transform: `scale(${contentScale})` }}>
-      {status === 'idle' ? (
-        <>
-          <div className="workout-overview">
-            <div className="workout-introduction">
-              <p className="workout-eyebrow">A LITTLE TIME FOR YOURSELF</p>
-              <h2><span>Move.</span><span>Breathe.</span><span>Reset.</span></h2>
-              <p className="workout-lead">A full-body break, at your own pace.</p>
-              <div className="workout-facts"><span><Clock3 aria-hidden="true" /><strong>7:00</strong> total</span><span><Activity aria-hidden="true" /><strong>30s</strong> per move</span><span><Timer aria-hidden="true" /><strong>5s</strong> transitions</span></div>
-              <RemoteButton ref={primaryRef} className="workout-button workout-primary" onClick={start}><Play fill="currentColor" /> Start workout</RemoteButton>
-              <p className="workout-safety">Have a mat, a wall, and a low, stable step or secured bench nearby. Take longer breaks whenever you need. Stop if you feel pain or dizziness.</p>
+      <div className="workout-session" data-phase={stage.kind}>
+        <section className="workout-move" aria-labelledby="workout-move-title">
+          <p className="workout-eyebrow" role="status"><Activity aria-hidden="true" />{complete ? 'Session complete' : status === 'idle' ? 'Your workout' : status === 'paused' ? 'Paused' : stage.kind === 'ready' ? 'Get ready' : stage.kind === 'rest' ? 'Rest / up next' : stage.switchSide ? 'Switch sides' : 'Let\'s move'}</p>
+          <h2 id="workout-move-title">{complete ? 'Well done.' : exercise.name}</h2>
+          <p className="workout-cue">{complete ? 'Catch your breath, walk gently, and have some water.' : stage.switchSide && active ? 'Change to your other side. Keep breathing.' : exercise.cue}</p>
+          <p className="workout-easier">{complete ? <><Check aria-hidden="true" />12 exercises complete.</> : <><strong>Gentler option</strong>{exercise.easier}</>}</p>
+          <div className="workout-timing">
+            <div className="workout-countdown" role="timer" aria-label={complete ? 'Session complete' : `${status === 'idle' ? EXERCISE_SECONDS : stage.remaining} seconds remaining`}>
+              <span>{complete ? <Check aria-hidden="true" /> : String(status === 'idle' ? EXERCISE_SECONDS : stage.remaining).padStart(2, '0')}</span>
+              <span className="workout-seconds">{complete ? 'finished' : 'seconds'}</span>
             </div>
-            <div className="workout-preview">
-              <div className="workout-artwork"><img src={imageUrl('jumping_jacks')} alt="Two positions of a jumping jack" /><span className="workout-artwork-caption">01 / Jumping jacks</span></div>
-              <ol className="workout-routine">{exercises.map((item, index) => <li key={item.id}><span>{String(index + 1).padStart(2, '0')}</span>{item.name}</li>)}</ol>
+            <div className="workout-timing-detail">
+              <span><Clock3 aria-hidden="true" />{formatTime(TOTAL_SECONDS - elapsed)} {status === 'idle' ? 'total' : 'remaining'}</span>
+              <span>{status === 'idle' ? '5s between moves' : complete ? 'Take a moment to recover' : stage.kind !== 'exercise' ? `Next: ${exercise.name}` : `Next: ${nextExercise?.name ?? 'Finish & cool down'}`}</span>
             </div>
           </div>
-        </>
-      ) : complete ? (
-        <div className="workout-complete">
-          <div className="workout-check"><Check size={48} /></div>
-          <p className="workout-eyebrow">SESSION COMPLETE</p>
-          <h2>Seven minutes.<br />Well spent.</h2>
-          <p>12 exercises complete. Catch your breath, walk gently, and have some water.</p>
-          <div className="workout-actions">
-            {!scheduledLaunch && <RemoteButton ref={primaryRef} className="workout-button workout-primary" onClick={start}><RotateCcw /> Do it again</RemoteButton>}
-            <RemoteButton ref={scheduledLaunch ? primaryRef : undefined} className="workout-button workout-secondary" onClick={() => { if (!finishScheduledApp('workout')) { setStatus('idle'); setElapsed(0) } }}>Done</RemoteButton>
-          </div>
+          <progress className="workout-stage-progress" max={complete || status === 'idle' ? EXERCISE_SECONDS : stage.duration} value={complete ? EXERCISE_SECONDS : status === 'idle' ? 0 : stage.duration - stage.remaining} aria-label="Current interval progress" />
+          {status === 'idle' && <p className="workout-safety">Have a mat, a wall, and a low, stable step or secured bench nearby. Rest when needed. Stop if you feel pain or dizziness.</p>}
+          {complete && scheduledLaunch && <p className="workout-safety">Returning to your schedule shortly.</p>}
+        </section>
+        <div className="workout-demonstration">
+          <img src={imageUrl(exercise.id)} alt={`${exercise.name} positions`} />
+          <span className="workout-artwork-caption">{String(stage.exerciseIndex + 1).padStart(2, '0')} / {exercise.name}</span>
         </div>
-      ) : (
-        <>
-          <div className="workout-session" data-phase={stage.kind}>
-            <div className="workout-move">
-              <p className="workout-eyebrow" role="status">{status === 'paused' ? 'PAUSED' : stage.kind === 'ready' ? 'GET READY' : stage.kind === 'rest' ? 'REST / UP NEXT' : stage.switchSide ? 'SWITCH SIDES' : 'LET\'S MOVE'}</p>
-              <h2>{exercise.name}</h2>
-              <img key={exercise.id} src={imageUrl(exercise.id)} alt={`${exercise.name} positions`} />
-              <p className="workout-cue">{stage.switchSide ? 'Change to your other side. Keep breathing.' : exercise.cue}</p>
-              <p className="workout-easier"><span>Gentler option</span> {exercise.easier}</p>
-            </div>
-            <div className="workout-timing">
-              <div className="workout-timer-dial" style={{ '--interval-progress': `${100 * (stage.duration - stage.remaining) / stage.duration}%` } as CSSProperties}>
-              <progress className="workout-stage-progress" max={stage.duration} value={stage.duration - stage.remaining} aria-label="Current interval progress" />
-              <div className="workout-countdown" role="timer" aria-label={`${stage.remaining} seconds remaining`}>
-                <span>{String(stage.remaining).padStart(2, '0')}</span>
-                <span className="workout-seconds">seconds</span>
-              </div>
-              </div>
-              <p className="workout-remaining">{formatTime(TOTAL_SECONDS - elapsed)} <span>left in session</span></p>
-              <div className="workout-actions">
-                <RemoteButton ref={primaryRef} className="workout-button workout-primary" onClick={status === 'running' ? pause : start}>{status === 'running' ? <Pause /> : <Play fill="currentColor" />}{status === 'running' ? 'Pause' : 'Resume'}</RemoteButton>
-                <RemoteButton className="workout-button workout-secondary" onClick={() => requestExit()}><Square /> End</RemoteButton>
-              </div>
-              <div className="workout-next"><span>{stage.kind === 'exercise' ? 'UP NEXT' : 'STARTING NEXT'}</span><strong>{stage.kind !== 'exercise' ? exercise.name : exercises[stage.exerciseIndex + 1]?.name ?? 'Finish & cool down'}</strong></div>
-            </div>
-          </div>
-          <div className="workout-progress" aria-label={`Exercise ${stage.exerciseIndex + 1} of 12`}>{exercises.map((item, index) => <span key={item.id} className={index < stage.exerciseIndex ? 'is-done' : index === stage.exerciseIndex ? 'is-current' : ''} aria-current={index === stage.exerciseIndex ? 'step' : undefined}>{index < stage.exerciseIndex ? <Check aria-hidden="true" /> : String(index + 1).padStart(2, '0')}</span>)}</div>
-        </>
-      )}
+        <aside className="workout-lineup" aria-label="Workout routine">
+          <div className="workout-lineup-heading"><h3>Your routine</h3><span>12 moves</span></div>
+          <ol className="workout-routine">{exercises.map((item, index) => {
+            const done = complete || index < stage.exerciseIndex
+            const current = !complete && index === stage.exerciseIndex
+            return <li key={item.id} className={done ? 'is-done' : current ? 'is-current' : ''} aria-current={current ? 'step' : undefined}>
+              <span className="workout-routine-number">{done ? <Check aria-label="Complete" /> : String(index + 1).padStart(2, '0')}</span>
+              <span className="workout-routine-name">{item.name}</span>
+              <span className="workout-routine-duration">30s</span>
+            </li>
+          })}</ol>
+        </aside>
       </div>
+      <div className="workout-controls">
+        <RemoteButton className="workout-button workout-secondary workout-back" onClick={back}><ArrowLeft aria-hidden="true" />Back</RemoteButton>
+        <RemoteButton ref={primaryRef} className="workout-button workout-primary" onClick={complete && scheduledLaunch ? () => finishScheduledApp('workout') : status === 'running' && !complete ? pause : start}>
+          {complete ? scheduledLaunch ? <Check aria-hidden="true" /> : <RotateCcw aria-hidden="true" /> : status === 'running' ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" fill="currentColor" />}
+          {complete ? scheduledLaunch ? 'Done' : 'Restart' : status === 'idle' ? 'Start workout' : status === 'running' ? 'Pause' : 'Resume'}
+        </RemoteButton>
+        <div className="workout-session-progress">
+          <div className="workout-progress" aria-hidden="true">{exercises.map((item, index) => <span key={item.id} className={complete || index < stage.exerciseIndex ? 'is-done' : index === stage.exerciseIndex ? 'is-current' : ''} />)}</div>
+          <span>{complete ? '12 / 12 complete' : `${stage.exerciseIndex + 1} / 12`}</span>
+        </div>
+        {complete ? !scheduledLaunch && <RemoteButton className="workout-button workout-secondary workout-next" onClick={() => { setStatus('idle'); setElapsed(0); clock.current.accumulated = 0 }}><Check aria-hidden="true" />Done</RemoteButton> : <RemoteButton className="workout-button workout-secondary workout-next" disabled={!active} onClick={next}><SkipForward aria-hidden="true" />{stage.kind === 'rest' || stage.kind === 'ready' ? 'Begin exercise' : nextExercise ? 'Next exercise' : 'Finish'}</RemoteButton>}
       </div>
       {exitOpen && <ConfirmationDialog title="End this workout?" message="Your session is paused. You can keep going or end here." confirmLabel="End workout" cancelLabel="Keep going" destructive onConfirm={finishExit} onCancel={cancelExit} />}
     </RemoteAppShell>

@@ -51,6 +51,15 @@ export function getStage(elapsedSeconds: number): WorkoutStage {
   throw new Error('Workout timeline could not be resolved')
 }
 
+export function getNextExerciseElapsed(elapsedSeconds: number) {
+  const stage = getStage(elapsedSeconds)
+  if (stage.kind === 'complete') return TOTAL_SECONDS
+  if (stage.kind === 'ready' || stage.kind === 'rest') {
+    return PREP_SECONDS + stage.exerciseIndex * (EXERCISE_SECONDS + REST_SECONDS)
+  }
+  return Math.min(TOTAL_SECONDS, PREP_SECONDS + stage.exerciseIndex * (EXERCISE_SECONDS + REST_SECONDS) + EXERCISE_SECONDS)
+}
+
 export function formatTime(seconds: number) {
   const rounded = Math.max(0, Math.ceil(seconds))
   return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, '0')}`
