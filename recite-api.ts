@@ -20,7 +20,11 @@ export async function handleReciteRequest(request: IncomingMessage, response: Se
       try { raw = await readFile(filename, 'utf8') }
       catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-        raw = await readFile(seedFilename, 'utf8')
+        try { raw = await readFile(seedFilename, 'utf8') }
+        catch (seedError) {
+          if ((seedError as NodeJS.ErrnoException).code !== 'ENOENT') throw seedError
+          raw = '{"decks":[],"flashcards":[]}'
+        }
       }
       send(200, parseLibrary(JSON.parse(raw)))
       return

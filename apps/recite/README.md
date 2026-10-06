@@ -34,8 +34,11 @@ export downloads the saved library for backup. Browser-local review progress
 is not included in exports.
 
 Saved changes live in `data/recite-library.json` at the repository root and
-survive builds. Back up this file with your kiosk data. Until the first save,
-the API uses `apps/recite/public/data/library.json` as sample/seed content.
+survive builds. Runtime libraries and temporary save files are ignored by Git;
+back them up separately or use the export control. A fresh checkout starts
+with an empty library: create decks or import a backup through `/manage`.
+Until the first save, the API can use an optional local
+`apps/recite/public/data/library.json` seed file, which is also ignored by Git.
 Both development and production use `/api/recite/library`; writes use the same
 management-access protection as schedules. The independent Recite dev server
 also serves this endpoint. Activate **Refresh library** in Recite (or reopen

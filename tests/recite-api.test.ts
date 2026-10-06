@@ -32,7 +32,6 @@ test('Recite library persists edits and rejects invalid replacements', async () 
   const directory = await mkdtemp(join(tmpdir(), 'recite-api-'))
   const seed = join(directory, 'seed.json')
   const initial = { decks: [{ id: 'deck', name: 'Original', enabled: true }], flashcards: [] }
-  await writeFile(seed, JSON.stringify(initial))
   const server: Server = createServer((request, response) => { void handleReciteRequest(request, response, directory, seed) })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
@@ -40,6 +39,12 @@ test('Recite library persists edits and rejects invalid replacements', async () 
   const url = `http://127.0.0.1:${address.port}/api/recite/library`
   const put = (value: unknown) => fetch(url, { method: 'PUT', body: JSON.stringify(value) })
   try {
+    const empty = await fetch(url)
+    assert.equal(empty.status, 200)
+    assert.deepEqual(await empty.json(), { decks: [], flashcards: [] })
+    await writeFile(seed, '{')
+    assert.equal((await fetch(url)).status, 500)
+    await writeFile(seed, JSON.stringify(initial))
     assert.deepEqual(await (await fetch(url)).json(), initial)
     const updated = { decks: [{ id: 'deck', name: 'Renamed', enabled: false }], flashcards: [{ id: 'card', deckId: 'deck', front: 'Question', back: 'Answer', interval: 3, repetitions: 2, easeFactor: 2.5, lastReviewDate: null }] }
     assert.equal((await put(updated)).status, 200)
