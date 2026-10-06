@@ -7,6 +7,24 @@
 - Keep each app's Vite `base`, output directory, root Vite proxy, and kiosk launch URL in `src/apps/registry.ts` aligned.
 - Do not duplicate shared app framing or remote-navigation behavior inside individual apps when `@kiosk/remote-ui` already provides it.
 
+## Shared Runtime Storage
+
+- Resolve editable server data through `storage.ts` and `storagePath`, not app-relative paths or the working directory. `KIOSK_DATA_DIR` overrides the root; the default is the ignored repository `data/` directory. Production uses `/opt/kiosk/shared/data`, linked into each release.
+- Keep data namespaced by owner: `kiosk/schedules.json`, `recite/library.json`, and Jukebox's `jukebox/library.json`, `jukebox/tags.json`, `jukebox/videos/`, and `jukebox/staging/`. Extend the shared resolver when adding another app with server persistence.
+- Never commit or package editable libraries, schedules, downloaded media, backups, or temporary save files. Do not put runtime data in `public/` or `dist/`. Shipped read-only Scripture datasets and Workout assets remain with their apps.
+- Browser state is separate: durable preferences/progress use `localStorage`; temporary playback/return state uses `sessionStorage`. Preserve existing keys unless a separately tested browser-state migration is needed. Server backups do not include browser state.
+- Use atomic saves and honor the resolver's real path. Migration 1 retains flat schedule/Recite backing files with canonical compatibility links; renaming over a link rather than its resolved target would split old/new releases' data. Keep compatibility paths during the rollback window.
+
+## App Data Migrations
+
+- Add storage-layout or persisted-schema migrations to `scripts/migrate-storage.ts`; do not silently move or rewrite user data in app startup or builds. Keep supported-version checks in the migration and resolver aligned, and reject unsupported newer data.
+- Stop all kiosk/app writers before migration. Local commands are `npm run storage:migrate` followed by `npm run storage:check`. Production migration runs as the service user with `KIOSK_DATA_DIR=/opt/kiosk/shared/data` and `KIOSK_LEGACY_ROOT=/opt/kiosk/shared`.
+- Migrations must be versioned, repeatable, resumable after interruption, and protected against concurrent execution. Validate metadata and referenced media before writing the version marker. Refuse conflicting destinations or unexpected links rather than overwriting or merging them.
+- Preserve metadata backups and rollback-compatible live paths without duplicating large media collections. Roll back code, not automatically to stale data snapshots. Incompatible schema changes require an explicit rollback/recovery policy; snapshots alone are not a complete media backup.
+- Update `scripts/install-auto-updates.sh`, `scripts/kiosk-update.sh`, and `.github/workflows/release.yml` together when changing migration dependencies, data paths, or health checks. Packaged runtime imports must work without workspace dependencies. `GET /api/health` validates storage without exposing content or requiring management credentials.
+- Test with temporary directories, never the user's real libraries. Cover repeated/interrupted runs, conflicts, live/dead locks, unsupported versions, atomic saves through compatibility paths, and missing media. Run `npm test` for migration/API/extracted-runtime tests and the full workspace suite for app regressions. Validate deployment scripts with `bash -n`; actual systemd activation/rollback needs Linux validation.
+- Keep operational backup, migration, platform-permission, and rollback instructions in `README.md` aligned with implementation. Do not remove an active migration lock or bypass Windows symlink permissions/cross-filesystem safeguards.
+
 ## App UI and Remote Input
 
 - Use `RemoteAppShell` from `@kiosk/remote-ui` for standard app pages. Import `@kiosk/remote-ui/styles.css` in the app entry point.
