@@ -202,6 +202,16 @@ node --env-file=/opt/kiosk/shared/kiosk.env --experimental-strip-types server.ts
 When starting Node manually, the file must be readable by that user; use a
 user-owned file with mode `600` instead of granting broad read access.
 
+### Deck Answer Pronunciation
+
+In **Management > Flashcard decks**, select an **Answer language** such as Thai
+and save the deck. Recite speaks the card back when revealed and offers a
+speaker button to replay it or stop playback. Leave the language as **None**
+for silent decks. The kiosk's browser must expose a matching speech voice;
+otherwise Recite shows a warning without using another language. See
+[Answer Pronunciation](apps/recite/README.md#answer-pronunciation) for voice
+requirements and import/export details.
+
 ### Deck Theme Images
 
 In management, open **Flashcard decks**, select a deck, and choose **Choose image**.

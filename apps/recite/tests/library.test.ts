@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { isDue, parseLibrary, selectCards } from '../src/library.ts'
+import { pronunciationVoice } from '../src/speech.ts'
 
 const source = {
   decks: [{ id: 'one', name: 'First deck' }, { id: 'two', name: 'Disabled', enabled: false }],
@@ -44,4 +45,30 @@ test('preserves optional deck images and rejects unsafe image links', () => {
   for (const url of ['javascript:alert(1)', 'https://example.com/photo', 'https://images.unsplash.com.evil.test/photo']) {
     assert.throws(() => parseLibrary({ ...source, decks: [{ ...source.decks[0], image: { ...image, url } }, source.decks[1]] }))
   }
+})
+
+test('preserves optional deck languages without changing existing decks', () => {
+  const library = parseLibrary({ ...source, decks: [{ ...source.decks[0], language: 'th-th' }, source.decks[1]] })
+  assert.equal(library.decks[0].language, 'th-TH')
+  assert.equal(library.decks[1].language, undefined)
+  assert.deepEqual(parseLibrary(JSON.parse(JSON.stringify(library))), library)
+  assert.deepEqual(parseLibrary(source).decks[0], { id: 'one', name: 'First deck', enabled: true })
+  for (const language of ['', 'Thai language', 'th_TH', 42, {}]) {
+    assert.throws(() => parseLibrary({ ...source, decks: [{ ...source.decks[0], language }] }), /language tag/)
+  }
+})
+
+test('pronunciation uses matching voices, never an unrelated language or script', () => {
+  const english = { lang: 'en-US', default: true }
+  const thai = { lang: 'th-TH', default: false }
+  assert.equal(pronunciationVoice([english, thai], 'th-TH'), thai)
+  assert.equal(pronunciationVoice([english], 'th-TH'), undefined)
+  assert.equal(pronunciationVoice([], 'th-TH'), undefined)
+  assert.equal(pronunciationVoice([{ lang: 'invalid_tag!', default: false }, thai], 'th'), thai)
+  const british = { lang: 'en-GB', default: false }
+  assert.equal(pronunciationVoice([english, british], 'en-GB'), british)
+  assert.equal(pronunciationVoice([english, british], 'en-AU'), english)
+  assert.equal(pronunciationVoice([{ lang: 'zh-CN', default: true }], 'zh-TW'), undefined)
+  const traditional = { lang: 'zh-Hant-HK', default: false }
+  assert.equal(pronunciationVoice([traditional], 'zh-TW'), traditional)
 })

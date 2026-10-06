@@ -6,6 +6,15 @@ import ImageCredit from '../../apps/recite/src/ImageCredit'
 import DeckImagePicker from './DeckImagePicker'
 
 const endpoint = '/api/recite/library'
+const languages = [
+  ['th-TH', 'Thai'], ['en-US', 'English (US)'], ['en-GB', 'English (UK)'],
+  ['ar', 'Arabic'], ['zh-CN', 'Chinese (Simplified)'], ['zh-TW', 'Chinese (Traditional)'],
+  ['nl-NL', 'Dutch'], ['fr-FR', 'French'], ['de-DE', 'German'], ['el-GR', 'Greek'],
+  ['he-IL', 'Hebrew'], ['hi-IN', 'Hindi'], ['id-ID', 'Indonesian'], ['it-IT', 'Italian'],
+  ['ja-JP', 'Japanese'], ['ko-KR', 'Korean'], ['ms-MY', 'Malay'], ['pl-PL', 'Polish'],
+  ['pt-BR', 'Portuguese (Brazil)'], ['pt-PT', 'Portuguese (Portugal)'], ['ru-RU', 'Russian'],
+  ['es-ES', 'Spanish'], ['sv-SE', 'Swedish'], ['tr-TR', 'Turkish'], ['uk-UA', 'Ukrainian'], ['vi-VN', 'Vietnamese'],
+] as const
 const newDeck = (): Deck => ({ id: crypto.randomUUID(), name: '', enabled: true })
 const newCard = (deckId: string): Flashcard => ({ id: crypto.randomUUID(), deckId, front: '', back: '', interval: 0, repetitions: 0, easeFactor: 2.5, lastReviewDate: null })
 type Confirmation = { title: string; message: string; label: string; destructive?: boolean; action: () => void }
@@ -23,7 +32,7 @@ export default function Decks({ onDirtyChange }: { onDirtyChange: (dirty: boolea
   const fileRef = useRef<HTMLInputElement>(null)
   const originalDeck = library?.decks.find((entry) => entry.id === deck.id)
   const originalCard = library?.flashcards.find((entry) => entry.id === card.id)
-  const deckDirty = originalDeck ? JSON.stringify(deck) !== JSON.stringify(originalDeck) : !!(deck.name || deck.image)
+  const deckDirty = originalDeck ? JSON.stringify(deck) !== JSON.stringify(originalDeck) : !!(deck.name || deck.image || deck.language)
   const cardDirty = originalCard ? JSON.stringify(card) !== JSON.stringify(originalCard) : !!(card.front || card.back)
   const dirty = deckDirty || cardDirty
   const cards = library?.flashcards.filter((entry) => entry.deckId === deck.id) ?? []
@@ -138,6 +147,10 @@ export default function Decks({ onDirtyChange }: { onDirtyChange: (dirty: boolea
         <form className="management__deck-form" onSubmit={saveDeck}>
           <h2>{originalDeck ? 'Edit deck' : 'New deck'}</h2>
           <label>Deck name<input value={deck.name} required onChange={(event) => setDeck({ ...deck, name: event.target.value })} /></label>
+          <label>Answer language<select value={deck.language ?? ''} onChange={(event) => {
+            const language = event.target.value
+            setDeck(({ language: _language, ...rest }) => language ? { ...rest, language } : rest)
+          }}><option value="">None</option>{deck.language && !languages.some(([tag]) => tag === deck.language) && <option value={deck.language}>{deck.language}</option>}{languages.map(([tag, name]) => <option key={tag} value={tag}>{name}</option>)}</select></label>
           <div className="management__deck-options"><label className="management__deck-enabled"><input type="checkbox" checked={deck.enabled} onChange={(event) => setDeck({ ...deck, enabled: event.target.checked })} />Enabled</label><div className="management__deck-actions"><button type="button" title={deck.image ? 'Change image' : 'Choose image'} aria-label={deck.image ? 'Change image' : 'Choose image'} onClick={() => setImagePicker(true)}><ImagePlus size={17} /></button>{deck.image && <button type="button" title="Remove theme image" aria-label="Remove theme image" onClick={() => setDeck(({ image: _image, ...rest }) => rest)}><X size={17} /></button>}</div></div>
           {deck.image && <div className="management__deck-image"><img src={deck.image.thumbnailUrl} alt={deck.image.alt} /><ImageCredit image={deck.image} /></div>}
           <div className="management__deck-actions"><button type="submit" disabled={!deck.name.trim() || !deckDirty}><Save size={17} />Save deck</button>{originalDeck && <button type="button" title="Delete deck" aria-label="Delete deck" onClick={() => setConfirmation({ title: 'Delete this deck?', message: `This permanently deletes "${originalDeck.name}" and its ${cards.length} cards.`, label: 'Delete deck', destructive: true, action: () => { if (library) void save({ decks: library.decks.filter((entry) => entry.id !== deck.id), flashcards: library.flashcards.filter((entry) => entry.deckId !== deck.id) }, (saved) => selectDeck(saved.decks[0] ?? newDeck()), 'Deck deleted.') } })}><Trash2 size={17} /></button>}</div>

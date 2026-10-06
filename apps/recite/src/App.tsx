@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, CheckSquare, ChevronLeft, ChevronRight, CircleCheck, Eye, Layers, RefreshCw, RotateCcw, Square, Trophy, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CheckSquare, ChevronLeft, ChevronRight, CircleCheck, Eye, Layers, RefreshCw, RotateCcw, Square, SquareStop, Trophy, Volume2, Zap } from 'lucide-react'
 import { RemoteAppShell, RemoteButton, useToast } from '@kiosk/remote-ui'
 import { isDue, parseLibrary, selectCards } from './library'
 import type { Library } from './library'
@@ -7,6 +7,7 @@ import { advanceSession, applyProgress, createSession, rememberCard, reviewCard 
 import type { Progress, Rating, Session } from './session'
 import { paginateText } from './paginate'
 import ImageCredit from './ImageCredit'
+import { pronunciationVoice } from './speech'
 
 const PROGRESS_KEY = 'recite.progress.v1'
 const DECKS_KEY = 'recite.decks.v1'
@@ -26,7 +27,7 @@ function savedProgress(): Progress {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Progress : {}
 }
 
-function CardText({ text }: { text: string }) {
+function CardText({ text, language }: { text: string; language?: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const textRef = useRef<HTMLParagraphElement>(null)
   const previousRef = useRef<HTMLButtonElement>(null)
@@ -74,7 +75,7 @@ function CardText({ text }: { text: string }) {
     })
   }
   return <div className="recite-card-body">
-    <div className="recite-card-text" ref={containerRef}><p ref={textRef} dir="auto" style={{ fontSize: layout.size }}>{layout.pages[pageIndex]}</p></div>
+    <div className="recite-card-text" ref={containerRef}><p ref={textRef} dir="auto" lang={language} style={{ fontSize: layout.size }}>{layout.pages[pageIndex]}</p></div>
     <div className="recite-card-pages" data-paginated={layout.pages.length > 1} aria-hidden={layout.pages.length === 1}>
       <RemoteButton ref={previousRef} className="recite-icon-button" disabled={pageIndex === 0} aria-label="Previous text page" title="Previous text page" onClick={() => changePage(pageIndex - 1)}><ChevronLeft aria-hidden="true" /></RemoteButton>
       <span aria-live="polite">{pageIndex + 1} / {layout.pages.length}</span>
@@ -93,12 +94,67 @@ export default function App() {
   const [practice, setPractice] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
   const [revealed, setRevealed] = useState(false)
+  const [speaking, setSpeaking] = useState(false)
+  const utterance = useRef<SpeechSynthesisUtterance | null>(null)
   const progress = useRef<Progress>(savedProgress())
   const storageWarning = useRef(false)
   const grading = useRef(false)
   const training = session !== null
   const complete = !!session && session.index >= session.cards.length
   const card = session?.cards[session.index]
+  const activeDeck = library?.decks.find((deck) => deck.id === card?.deckId)
+
+  useEffect(() => {
+    const stop = () => {
+      utterance.current = null
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+      setSpeaking(false)
+    }
+    const hide = () => { if (document.hidden) stop() }
+    window.addEventListener('pagehide', stop)
+    document.addEventListener('visibilitychange', hide)
+    return () => {
+      window.removeEventListener('pagehide', stop)
+      document.removeEventListener('visibilitychange', hide)
+      stop()
+    }
+  }, [])
+
+  function stopPronunciation() {
+    utterance.current = null
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+    setSpeaking(false)
+  }
+
+  function speakAnswer() {
+    stopPronunciation()
+    if (!card || !activeDeck?.language) return
+    if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+      toast('Pronunciation is not supported by this browser.', { variant: 'warning' })
+      return
+    }
+    const synth = window.speechSynthesis
+    const voice = pronunciationVoice(synth.getVoices(), activeDeck.language)
+    if (!voice) {
+      toast(`No voice is available for ${activeDeck.language}. Install a matching voice on this device, then try again.`, { variant: 'warning' })
+      return
+    }
+    const next = new SpeechSynthesisUtterance(card.back)
+    next.lang = activeDeck.language
+    next.voice = voice
+    next.onend = () => { if (utterance.current === next) { utterance.current = null; setSpeaking(false) } }
+    const fail = () => {
+      if (utterance.current !== next) return
+      utterance.current = null
+      setSpeaking(false)
+      toast('Could not speak this answer. Try replaying it.', { variant: 'warning' })
+    }
+    next.onerror = fail
+    utterance.current = next
+    setSpeaking(true)
+    try { synth.speak(next) }
+    catch { fail() }
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -159,6 +215,7 @@ export default function App() {
 
   function grade(rating: Rating) {
     if (!session || !card || !revealed || grading.current) return
+    stopPronunciation()
     grading.current = true
     const reviewed = session.practice ? card : reviewCard(card, rating)
     if (!session.practice && library) {
@@ -171,6 +228,7 @@ export default function App() {
   }
 
   function back() {
+    stopPronunciation()
     if (!session) { window.location.assign('/'); return true }
     setSession(null)
     setRevealed(false)
@@ -227,16 +285,16 @@ export default function App() {
         {session && !complete && card && <>
           <div className="recite-session-heading">
             <RemoteButton className="recite-button recite-secondary" onClick={back}><ArrowLeft aria-hidden="true" />Decks</RemoteButton>
-            <span className="recite-deck-name" dir="auto">{library?.decks.find((deck) => deck.id === card.deckId)?.name}</span>
+            <span className="recite-deck-name" dir="auto">{activeDeck?.name}</span>
             <span className="recite-counter">{session.index + 1} / {session.cards.length}</span>
           </div>
           <progress className="recite-progress" value={session.index} max={session.cards.length} aria-label="Session progress" />
           <div className="recite-flashcard" data-revealed={revealed}>
-            <p className="recite-eyebrow">{session.practice ? 'Practice' : 'Review'} / {revealed ? 'Answer' : 'Question'}</p>
-            <CardText key={`${card.id}-${revealed}`} text={revealed ? card.back : card.front} />
+            <div className="recite-card-heading"><p className="recite-eyebrow">{session.practice ? 'Practice' : 'Review'} / {revealed ? 'Answer' : 'Question'}</p>{revealed && activeDeck?.language && <RemoteButton className="recite-icon-button" aria-label={speaking ? 'Stop pronunciation' : 'Speak answer'} title={speaking ? 'Stop pronunciation' : 'Speak answer'} onClick={speaking ? stopPronunciation : speakAnswer}>{speaking ? <SquareStop aria-hidden="true" /> : <Volume2 aria-hidden="true" />}</RemoteButton>}</div>
+            <CardText key={`${card.id}-${revealed}`} text={revealed ? card.back : card.front} language={revealed ? activeDeck?.language : undefined} />
           </div>
           <div className="recite-actions">
-            {!revealed ? <RemoteButton className="recite-button recite-reveal" data-primary onClick={() => setRevealed(true)}><Eye aria-hidden="true" />Reveal answer</RemoteButton> :
+            {!revealed ? <RemoteButton className="recite-button recite-reveal" data-primary onClick={() => { setRevealed(true); speakAnswer() }}><Eye aria-hidden="true" />Reveal answer</RemoteButton> :
               <div className="recite-ratings" aria-label="Rate your recall">{ratingOptions.map(({ value, label, Icon }) => <RemoteButton key={value} className="recite-button" data-rating={value} data-primary={value === 'good' ? '' : undefined} onClick={() => grade(value)}><Icon aria-hidden="true" />{label}</RemoteButton>)}</div>}
           </div>
         </>}

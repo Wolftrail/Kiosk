@@ -7,7 +7,7 @@ export type DeckImage = {
   photographerUrl: string
   photoUrl: string
 }
-export type Deck = { id: string; name: string; enabled: boolean; image?: DeckImage }
+export type Deck = { id: string; name: string; enabled: boolean; image?: DeckImage; language?: string }
 export type Flashcard = {
   id: string
   deckId: string
@@ -64,7 +64,12 @@ export function parseLibrary(value: unknown): Library {
     const id = text(deck.id)
     if (deckIds.has(id)) throw new Error('Duplicate deck ID.')
     deckIds.add(id)
-    return { id, name: text(deck.name), enabled: deck.enabled !== false, ...(deck.image == null ? {} : { image: parseDeckImage(deck.image) }) }
+    let language: string | undefined
+    if (deck.language != null) {
+      try { language = Intl.getCanonicalLocales(text(deck.language).trim())[0] }
+      catch { throw new Error('Deck language must be a valid language tag, such as th-TH.') }
+    }
+    return { id, name: text(deck.name), enabled: deck.enabled !== false, ...(deck.image == null ? {} : { image: parseDeckImage(deck.image) }), ...(language ? { language } : {}) }
   })
   const cardIds = new Set<string>()
   const flashcards = source.flashcards.map((entry) => {

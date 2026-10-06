@@ -76,6 +76,26 @@ Libraries are limited to 5 MB. Invalid imports are rejected without changing
 the saved library. Once a saved library exists, source/built sample-library
 changes do not replace it; use the management import control instead.
 
+## Answer Pronunciation
+
+In **Management > Flashcard decks**, set a deck's **Answer language** to Thai
+or another language and save the deck. Recite speaks the entire back of each
+card when you reveal it, in both Review and Practice. The speaker button replays
+the answer; while speaking, it becomes a stop button. Grading, leaving training,
+or hiding the app stops speech. Decks with **None** remain silent.
+
+Imports and exports preserve the optional deck `language` field, a BCP 47 tag
+such as `"language": "th-TH"`. Existing libraries need no rewrite or migration.
+Imported language tags not listed in the selector are retained. Older releases
+can read these libraries, but may discard language metadata when saving them.
+
+Pronunciation uses the browser's speech synthesis and requires a matching voice
+on the kiosk device. Available languages and voice quality depend on its OS and
+browser; installing a Thai voice does not guarantee every browser exposes it.
+If no matching voice is available, Recite warns and leaves the answer silent
+instead of using another language. Retry the speaker button after enabling the
+voice, or restart the browser if needed. Some voices require internet access.
+
 ## Training And Progress
 
 - Review includes only due cards in the selected decks. Practice includes all

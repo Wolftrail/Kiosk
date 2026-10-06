@@ -63,6 +63,7 @@ html, body, #root { height: 100%; overflow: hidden; }
 .recite-progress::-moz-progress-bar { background: #316c50; }
 .recite-flashcard { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; min-width: 0; padding: 28px 40px; background: #fff; border: 1px solid #cad6ce; border-radius: 8px; box-shadow: 0 5px 0 #dce7df; }
 .recite-flashcard[data-revealed='true'] { background: #e1eee5; border-color: #9cb8a7; }
+.recite-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: 0 0 52px; }
 .recite-card-body { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; min-width: 0; gap: 12px; }
 .recite-card-text { display: flex; flex: 1 1 0; min-height: 0; min-width: 0; align-items: center; justify-content: center; margin-top: 12px; }
 .recite-card-text p { width: 100%; margin: 0; text-align: center; font-family: var(--kiosk-font-reading); line-height: 1.25; white-space: pre-wrap; overflow-wrap: anywhere; }
