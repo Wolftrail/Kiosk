@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { extname, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -96,6 +96,15 @@ async function serveStatic(request: IncomingMessage, response: ServerResponse, p
 
 const server = createServer((request, response) => {
   const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+  if (pathname === '/api/version' && request.method === 'GET') {
+    void readFile(resolve(projectRoot, 'VERSION'), 'utf8')
+      .then((value) => value.trim() || 'dev', () => 'dev')
+      .then((version) => {
+        response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
+        response.end(JSON.stringify({ version }))
+      })
+    return
+  }
   if (pathname === '/api/health' && request.method === 'GET') {
     void validateStorage(dataRoot).then(() => {
       response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })

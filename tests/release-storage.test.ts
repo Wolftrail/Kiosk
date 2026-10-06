@@ -18,6 +18,7 @@ test('extracted runtime migrates legacy data and health-checks without dependenc
     await copyFile(resolve(repository, filename), resolve(release, filename))
   }
   await writeFile(resolve(release, 'package.json'), '{"type":"module"}')
+  await writeFile(resolve(release, 'VERSION'), 'v9.8.7\n')
   await mkdir(data, { recursive: true })
   await mkdir(resolve(shared, 'apps/jukebox/data'), { recursive: true })
   await mkdir(resolve(shared, 'apps/jukebox/public/videos'), { recursive: true })
@@ -48,6 +49,10 @@ test('extracted runtime migrates legacy data and health-checks without dependenc
     server.once('error', reject)
     server.once('exit', () => reject(new Error(errors || 'Server exited before listening.')))
   })
+  const version = await fetch(`${address}/api/version`)
+  assert.equal(version.status, 200)
+  assert.equal(version.headers.get('cache-control'), 'no-store')
+  assert.deepEqual(await version.json(), { version: 'v9.8.7' })
   assert.equal((await fetch(`${address}/api/health`)).status, 200)
   assert.deepEqual(await (await fetch(`${address}/api/recite/library`)).json(), library)
   assert.equal(await (await fetch(`${address}/apps/jukebox/videos/fixture.mp4`)).text(), 'media fixture')

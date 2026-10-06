@@ -56,11 +56,26 @@ function AppTile({ app, onSetup }: { app: KioskApp; onSetup: (app: KioskApp) => 
 function Home() {
   const [selectedApp, setSelectedApp] = useState<KioskApp | null>(null)
   const [clock, setClock] = useState(initialClock)
+  const [version, setVersion] = useState('...')
   const previousFocus = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     const interval = window.setInterval(() => setClock(formatClock()), 60_000)
     return () => window.clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void fetch('/api/version', { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error('Version request failed')
+        return response.json() as Promise<{ version?: string }>
+      })
+      .then((data) => setVersion(data.version || 'dev'))
+      .catch(() => {
+        if (!controller.signal.aborted) setVersion('dev')
+      })
+    return () => controller.abort()
   }, [])
 
   useEffect(() => {
@@ -110,7 +125,8 @@ function Home() {
 
       <footer className="kiosk-footer">
         <span className="kiosk-footer__status"><span aria-hidden="true" />READY WHEN YOU ARE</span>
-        <span>{appCatalog.length.toString().padStart(2, '0')} APPS</span>
+        <span className="kiosk-footer__version" aria-label={`Kiosk version ${version}`}>KIOSK {version}</span>
+        <span className="kiosk-footer__apps">{appCatalog.length.toString().padStart(2, '0')} APPS</span>
       </footer>
 
       {selectedApp && (

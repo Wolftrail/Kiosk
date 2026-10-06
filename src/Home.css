@@ -67,9 +67,11 @@
 .app-tile:focus-visible { outline: 4px solid #fff; outline-offset: 5px; }
 .app-tile:active { transform: translateY(-2px); }
 .kiosk-brand:focus-visible { outline: 3px solid #d4fa68; outline-offset: 6px; border-radius: 4px; }
-.kiosk-footer { display: flex; flex: 0 0 28px; align-items: center; justify-content: space-between; color: #b3bab6; font-size: 11px; font-weight: 700; }
+.kiosk-footer { display: grid; flex: 0 0 28px; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; color: #b3bab6; font-size: 11px; font-weight: 700; }
 .kiosk-footer__status { display: inline-flex; align-items: center; gap: 10px; }
 .kiosk-footer__status > span { width: 6px; height: 6px; border-radius: 50%; background: #d4fa68; }
+.kiosk-footer__version { font-variant-numeric: tabular-nums; }
+.kiosk-footer__apps { justify-self: end; }
 .modal-backdrop { position: fixed; z-index: 10; inset: 0; display: grid; padding: 24px; place-items: center; background: #101913b8; animation: fade-in 140ms ease both; }
 .setup-modal { position: relative; width: min(520px, 100%); max-height: calc(100dvh - 48px); overflow: auto; padding: 34px; border: 1px solid #d1dbd3; border-radius: 8px; color: #203b35; background: #f5f7f5; box-shadow: 0 28px 80px #0005; }
 .setup-modal__close { position: absolute; top: 15px; right: 15px; display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid #d1dbd3; border-radius: 4px; color: #203b35; background: transparent; cursor: pointer; }
